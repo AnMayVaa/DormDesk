@@ -10,7 +10,7 @@
 | ชื่อระบบ | **DormDesk** |
 | ทีม | group02 (3 คน) |
 | Cloud | Cloud Lab v1.0 ของอาจารย์ (45.77.40.35) |
-| สถานะปัจจุบัน | 🟢 Sprint 1 เกือบครบ — **ระบบต้นแบบออนไลน์** https://45.77.40.35:10201 · 5 เครื่องทำงานครบ (HA 2 API, Grafana, firewall ทุกเครื่อง) · smoke 16/16 · verify 20/20 · เหลือ: อีเมลแจ้งเตือน, push GitHub, ซ้อม demo |
+| สถานะปัจจุบัน | 🟢 Sprint 1 ครบ + ส่วนขยาย — **https://dormdesk-g02.duckdns.org:10201** (HTTPS ที่เชื่อถือได้) · 6 เครื่อง (เพิ่ม ai-01) · AI Insight · อีเมลแจ้งเตือน · TH/EN · smoke 16/16 · verify 26/26 · เหลือ: สัมภาษณ์เจ้าของหอ, ลบข้อมูล 180 วัน, สไลด์ + ซ้อม |
 
 ---
 
@@ -273,6 +273,9 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | **อีเมลแจ้งเตือนเป็น Should** | ผู้เช่าไม่ต้องคอยเปิดลิงก์ติดตาม — แก้ปัญหา "ต้องทักซ้ำ" จริง · LINE Notify ปิดแล้ว |
 | **SSH tunnel ผ่าน bastion ให้ web-01 คุยกับ API** | แล็บทิ้งทราฟฟิกข้าม subnet · API ยังอยู่ private + เปิดพอร์ตเดียว · กุญแจจำกัดด้วย from/permitopen |
 | **Frontend เป็น HTML/JS ล้วน แทน React** | web-01 มี 128 MB · ไม่ต้อง build · ใช้ CSP เข้มงวดได้ |
+| **AI Insight ใช้โมเดลเล็กในเครื่อง (ai-01) + template fallback** | ข้อมูลไม่ออกนอกแล็บ (PDPA) · ไม่มีค่าใช้จ่าย · โมเดลเล็กจึงให้แค่เรียบเรียงคำตอบที่คำนวณแล้ว และตรวจตัวเลขก่อนใช้ |
+| **โดเมน DuckDNS + Let's Encrypt DNS-01** | ใบรับรองสาธารณะออกให้ IP ของแล็บไม่ได้ (ไม่มีพอร์ต 80/443) · DNS-01 ไม่ต้องเปิดพอร์ตเพิ่ม |
+| **tunnel ใช้บัญชี ddtunnel แทน root** | least privilege: ไม่มี shell, forward ได้แค่ API:8000 |
 | **บอกข้อจำกัดของแล็บตรงๆ ใน pitch** | อ้างสิ่งที่ยังไม่ทำงานเสี่ยงเสียความน่าเชื่อถือใน Q&A |
 | **System_Architecture.md เป็นแหล่งข้อมูลหลัก** | 3 เอกสารเคยขัดกัน (3 vs 5 เครื่อง, 80 vs 443, รูปบนดิสก์ vs DB) |
 | MVP scope และ tech stack ไม่ใส่ใน One-Pager | ไม่ใช่สิ่งที่โจทย์ขอ และอาจเปลี่ยน |
@@ -290,6 +293,7 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | | ดู Cloud Lab, วาง IP plan + firewall, ร่าง One-Pager |
 | 27 ก.ย. 2026 | สร้าง 5 เครื่องบน Cloud Lab, ตั้ง port mapping 10201, ตรวจพบ firewall ของแล็บยังไม่ทำงาน |
 | 27 ก.ย. 2026 | Review แบบอาจารย์ → ปรับ 3 เอกสารให้ตรงกัน, เพิ่มแผนทดสอบ, RLS hardening, rate limit ต่อห้อง, PDPA, dashboard metrics |
+| 27 ก.ย. 2026 | AI Insight (ai-01 + Qwen3-0.6B, template fallback, ตรวจตัวเลข) · อีเมล Gmail · Let's Encrypt ผ่าน DuckDNS · tunnel ใช้บัญชี ddtunnel · UI ใหม่ + TH/EN · repo GitHub |
 | 27 ก.ย. 2026 | ต่อยอด: api-02 + HA (Idempotency-Key), Grafana dashboard, iptables ทุกเครื่อง, backup/restore, `tools/verify.sh` 20/20, แก้ http→https redirect + favicon |
 | 27 ก.ย. 2026 | เขียนโค้ดต้นแบบ (FastAPI + PostgreSQL RLS + หน้าเว็บผู้เช่า/เจ้าของ) · deploy db-01, api-01, web-01 · seed 2 หอ 63 คำขอ · พบว่าแล็บทิ้งทราฟฟิกข้าม subnet → ใช้ SSH tunnel ผ่าน bastion · smoke test 15/15 ผ่าน |
 

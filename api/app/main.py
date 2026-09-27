@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager, contextmanager
 from typing import List, Optional
 
 import bcrypt
-from fastapi import FastAPI, File, Form, Query, Request, Response, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
@@ -23,6 +23,8 @@ from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from . import insight, notify
 
 # ---------------------------------------------------------------- config
 DATABASE_URL = os.environ["DATABASE_URL"]
@@ -205,7 +207,7 @@ def clean_image(raw: bytes):
 
 
 @app.post("/api/rooms/{code}/requests", status_code=201)
-async def create_request(code: str, request: Request,
+async def create_request(code: str, request: Request, background: BackgroundTasks,
                          category_id: int = Form(...),
                          title: str = Form(..., min_length=3, max_length=120),
                          detail: str = Form("", max_length=2000),
@@ -263,7 +265,25 @@ async def create_request(code: str, request: Request,
         for mime, data in cleaned:
             c.execute("INSERT INTO request_photos (dorm_id, request_id, mime, size, data) VALUES (%s,%s,%s,%s,%s)",
                       (dorm_id, rid, mime, len(data), data))
+        info = c.execute("SELECT d.name AS dorm, rm.room_no, cat.name_th AS category FROM rooms rm JOIN dorms d ON d.id=rm.dorm_id "
+                         "JOIN categories cat ON cat.id=%s WHERE rm.id=%s", (category_id, room_id)).fetchone()
+    if notify.enabled():
+        on_err = lambda why: log_event("email_failed", ip, dorm_id, why)
+        if email:
+            background.add_task(notify.tenant_received, email, title.strip(), info["room_no"], info["dorm"], token, on_err)
+        for to in owner_recipients(dorm_id):
+            background.add_task(notify.owner_new_request, to, title.strip(), info["room_no"], info["dorm"], info["category"], False, on_err)
     return {"tracking_token": token, "tracking_url": f"/t/{token}"}
+
+
+def owner_recipients(dorm_id: int):
+    """OWNER_ALERT_TO (comma list) overrides; otherwise real e-mails of this dorm's admins (demo addresses skipped)."""
+    fixed = [x.strip() for x in os.environ.get("OWNER_ALERT_TO", "").split(",") if x.strip()]
+    if fixed:
+        return fixed
+    with pool.connection() as c:
+        rows = c.execute("SELECT a.email FROM admins a JOIN admin_dorms ad ON ad.admin_id=a.id WHERE ad.dorm_id=%s", (dorm_id,)).fetchall()
+    return [r["email"] for r in rows if not r["email"].endswith(".demo")]
 
 
 def resolve_tracking(request: Request, token: str):
@@ -417,13 +437,15 @@ class RequestPatch(BaseModel):
 
 
 @app.patch("/api/admin/requests/{rid}")
-def admin_update_request(rid: int, body: RequestPatch, request: Request):
+def admin_update_request(rid: int, body: RequestPatch, request: Request, background: BackgroundTasks):
     dorm_id = request_scope(request, rid)
     aid = require_admin(request)
     if body.status and body.status not in STATUSES or body.priority and body.priority not in PRIORITIES:
         raise ApiError(400, "bad_value", "ค่าสถานะหรือความเร่งด่วนไม่ถูกต้อง")
     with tenant_tx(dorm_id) as c:
-        cur = c.execute("SELECT status, priority FROM requests WHERE id=%s FOR UPDATE", (rid,)).fetchone()
+        cur = c.execute("SELECT q.status, q.priority, q.title, q.reporter_email, q.tracking_token, rm.room_no, d.name AS dorm "
+                        "FROM requests q JOIN rooms rm ON rm.id=q.room_id JOIN dorms d ON d.id=q.dorm_id "
+                        "WHERE q.id=%s FOR UPDATE OF q", (rid,)).fetchone()
         new_status = body.status or cur["status"]
         new_priority = body.priority or cur["priority"]
         c.execute("UPDATE requests SET status=%s, priority=%s, updated_at=now(), "
@@ -433,8 +455,12 @@ def admin_update_request(rid: int, body: RequestPatch, request: Request):
             c.execute("INSERT INTO request_events (dorm_id, request_id, from_status, to_status, note, actor) "
                       "VALUES (%s,%s,%s,%s,%s,%s)",
                       (dorm_id, rid, cur["status"], new_status, (body.note or "").strip() or None, f"admin:{aid}"))
-    # TODO (Should): e-mail the tenant when status changes and reporter_email is set
-    return {"id": rid, "status": new_status, "priority": new_priority}
+    if new_status != cur["status"] and cur["reporter_email"] and notify.enabled():
+        background.add_task(notify.tenant_status_changed, cur["reporter_email"], cur["title"], cur["room_no"], cur["dorm"],
+                            new_status, (body.note or "").strip(), cur["tracking_token"],
+                            lambda why: log_event("email_failed", client_ip(request), dorm_id, why))
+    return {"id": rid, "status": new_status, "priority": new_priority, "emailed": bool(cur["reporter_email"] and notify.enabled()
+                                                                                        and new_status != cur["status"])}
 
 
 @app.get("/api/admin/dorms/{dorm_id}/dashboard")
@@ -529,3 +555,34 @@ def set_category(dorm_id: int, body: CategoryPatch, request: Request):
                   "ON CONFLICT (dorm_id, category_id) DO UPDATE SET enabled=EXCLUDED.enabled",
                   (dorm_id, body.category_id, body.enabled))
     return {"category_id": body.category_id, "enabled": body.enabled}
+
+
+# ================================================================= AI INSIGHT (owner / manager)
+class AskIn(BaseModel):
+    question: str = Field(..., min_length=2, max_length=300)
+    lang: str = Field("th", pattern="^(th|en)$")
+
+
+AI_LIMIT_PER_10MIN = int(os.environ.get("AI_LIMIT_PER_10MIN", "20"))
+
+
+@app.get("/api/admin/ai/status")
+def ai_status(request: Request, lang: str = Query("th", pattern="^(th|en)$")):
+    require_admin(request)
+    return {"llm": "up" if insight.llm_up() else "down", "suggestions": insight.SUGGESTIONS[lang]}
+
+
+@app.post("/api/admin/dorms/{dorm_id}/ask")
+def ask(dorm_id: int, body: AskIn, request: Request):
+    aid = require_dorm_access(request, dorm_id)
+    n = one("SELECT count(*) AS n FROM security_events WHERE type='ai_question' AND detail=%s "
+            "AND occurred_at > now() - interval '10 minutes'", (f"admin={aid}",))["n"]
+    if n >= AI_LIMIT_PER_10MIN:
+        raise ApiError(429, "rate_limited", "ถามถี่เกินไป กรุณารอสักครู่")
+    log_event("ai_question", client_ip(request), dorm_id, f"admin={aid}")
+    intent = insight.detect_intent(body.question)
+    with tenant_tx(dorm_id) as c:            # RLS: facts can only come from this dorm
+        facts = insight.gather(c, intent, body.lang)
+    draft = insight.template(facts, body.lang)          # always correct: built only from FACTS
+    answer = insight.llm(body.question, draft, body.lang, insight._labels(facts))  # optional nicer wording
+    return {"answer": answer or draft, "source": "ai" if answer else "template", "intent": intent, "facts": facts}

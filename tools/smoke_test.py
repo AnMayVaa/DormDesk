@@ -7,8 +7,8 @@ import json, random, re, ssl, sys, uuid, http.cookiejar, urllib.request, urllib.
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE = sys.argv[1] if len(sys.argv) > 1 else "https://45.77.40.35:10201"
-ctx = ssl.create_default_context(cafile=str(ROOT / "infra/tls/dormdesk-ca.crt"))
+BASE = sys.argv[1] if len(sys.argv) > 1 else "https://dormdesk-g02.duckdns.org:10201"
+ctx = ssl.create_default_context() if not re.match(r"https://\d", BASE) else ssl.create_default_context(cafile=str(ROOT / "infra/tls/dormdesk-ca.crt"))  # public CA for the domain
 acc = (ROOT / "demo_accounts.txt").read_text(encoding="utf-8")
 codes = re.findall(r"/r/(\S+)", acc.split("(dorm_id 2)")[0])  # dorm 1 rooms
 pw = dict(re.findall(r"(\S+@dormdesk\.demo) / (\S+)", acc))

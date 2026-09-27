@@ -376,3 +376,21 @@ body { animation: fade-in .2s ease-out; }
   .card { border-radius: 16px; }
 }
 @media (max-width: 380px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } .kpis { grid-template-columns: 1fr 1fr; } }
+
+/* ------------------------------------------------------------------ AI Insight */
+.ai-head { display: flex; gap: 1rem; align-items: flex-start; }
+.ai-orb { width: 48px; height: 48px; flex: none; border-radius: 16px; display: grid; place-items: center; color: var(--on-sky);
+  background: linear-gradient(135deg, var(--sky), color-mix(in srgb, var(--pink) 70%, var(--sky))); box-shadow: var(--sh-1); }
+.ai-orb .icon { width: 24px; height: 24px; }
+.ai-form { display: flex; gap: .5rem; margin-top: 1rem; }
+.ai-form .input { flex: 1; }
+.chat { display: grid; gap: .9rem; margin-top: 1rem; }
+.bubble { max-width: 780px; padding: .85rem 1rem; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); }
+.bubble.q { justify-self: end; background: var(--st-received-bg); color: var(--st-received); border-color: transparent; border-bottom-right-radius: 6px; }
+.bubble.a { justify-self: start; background: var(--card); box-shadow: var(--sh-1); border-bottom-left-radius: 6px; }
+.bubble.a .answer { white-space: pre-wrap; }
+.bubble details { margin-top: .6rem; font-size: .85rem; color: var(--muted); }
+.bubble details summary { cursor: pointer; }
+.bubble pre { margin: .5rem 0 0; padding: .6rem .75rem; border-radius: var(--r-sm); background: var(--surface); font: .78rem/1.5 var(--mono); overflow-x: auto; color: var(--ink-2); }
+.thinking { display: flex; gap: .6rem; align-items: center; color: var(--muted); font-size: .9rem; }
+.thinking .skel { width: 120px; height: 10px; }

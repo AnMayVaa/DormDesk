@@ -47,6 +47,8 @@ const DD_ICONS = {
   send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>',
   activity: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
   repeat: '<path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/>',
+  sparkles: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+  cpu: '<rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>',
   keyRotate: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l3 3M20 14a8 8 0 0 1-6 7"/>',
 };
 // category id (01_schema.sql insert order) -> icon

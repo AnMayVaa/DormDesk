@@ -69,7 +69,7 @@
     $("dormTitle").setAttribute("translate", "no");
     $("tabs").querySelectorAll("[data-tab]").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)); b.tabIndex = b.dataset.tab === S.tab ? 0 : -1; });
     try {
-      await ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats })[S.tab]();
+      await ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats, ai: renderAI })[S.tab]();
       $("updated").textContent = t("อัปเดต {t}", { t: new Date().toLocaleTimeString(DD_I18N.locale, { hour: "2-digit", minute: "2-digit" }) });
       if (toastAfter === true) DD.toast("อัปเดตข้อมูลแล้ว");
     } catch (e) { fail(e); }
@@ -254,6 +254,46 @@
       el("p", { class: "small muted", text: "ส่งลิงก์ประจำห้องให้ผู้เช่าตอนย้ายเข้า ผู้เช่าเปิดลิงก์แล้วแจ้งซ่อมได้ทันทีโดยไม่ต้องสมัคร" }),
       form, el("div", { class: "input-icon" }, DD.icon("search"), filter), grid));
     draw();
+  }
+
+  // ---------------------------------------------------------------- AI Insight
+  const CHAT = {};   // per dorm, in memory only
+  async function renderAI() {
+    const lang = DD_I18N.lang;
+    const st = await DD.api(`/api/admin/ai/status?lang=${lang}`).catch(() => ({ llm: "down", suggestions: [] }));
+    const log = el("div", { class: "chat", "aria-live": "polite" });
+    const input = el("input", { class: "input", maxlength: 300, placeholder: "พิมพ์คำถาม เช่น ตอนนี้ค้างกี่เรื่อง", "aria-label": "คำถาม" });
+    const send = el("button", { class: "btn", type: "submit" }, DD.icon("send"), "ถาม");
+    const history = (CHAT[S.dormId] = CHAT[S.dormId] || []);
+    const bubbleQ = (q) => el("div", { class: "bubble q", translate: "no", text: q });
+    const bubbleA = (r) => el("div", { class: "bubble a" },
+      el("div", { class: "row small muted" }, DD.icon(r.source === "ai" ? "sparkles" : "chart"),
+        el("span", { text: r.source === "ai" ? "ตอบโดย AI ในระบบ (ai-01)" : "สรุปอัตโนมัติจากตัวเลข" })),
+      el("div", { class: "answer mt-1", translate: "no", text: r.answer }),
+      el("details", {}, el("summary", {}, "ตัวเลขที่ใช้ตอบ (คำนวณจากฐานข้อมูล ไม่ใช่ AI เดา)"),
+        el("pre", { translate: "no", text: JSON.stringify(r.facts, null, 2) })));
+    const redraw = () => log.replaceChildren(...history.flatMap((h) => [bubbleQ(h.q), h.r ? bubbleA(h.r) : el("div", { class: "thinking" },
+      el("span", { class: "skel" }), el("span", { text: st.llm === "up" ? "กำลังคิด… โมเดลในเครื่อง ai-01 อาจใช้ 10–30 วินาที" : "กำลังสรุป…" }))]));
+    const ask = async (q) => {
+      q = (q || "").trim();
+      if (q.length < 2) { input.focus(); return; }
+      input.value = ""; send.disabled = true;
+      const item = { q, r: null }; history.push(item); redraw();
+      try { item.r = await DD.api(`/api/admin/dorms/${S.dormId}/ask`, { method: "POST", json: { question: q, lang } }); }
+      catch (e) { history.pop(); fail(e); }
+      finally { send.disabled = false; redraw(); input.focus(); }
+    };
+    const form = el("form", { class: "ai-form", onsubmit: (ev) => { ev.preventDefault(); ask(input.value); } }, input, send);
+    $("panel").replaceChildren(el("section", { class: "card" },
+      el("div", { class: "ai-head" }, el("div", { class: "ai-orb" }, DD.icon("sparkles")),
+        el("div", { class: "spacer" }, el("h2", { class: "mt-0", text: "ถาม AI เกี่ยวกับหอของคุณ" }),
+          el("p", { class: "small muted", text: "ระบบคำนวณตัวเลขจากฐานข้อมูลของหอนี้ก่อน แล้วให้ AI เรียบเรียงเป็นคำตอบ AI เห็นเฉพาะตัวเลขสรุป ไม่เห็นชื่อ เบอร์ หรือข้อความของผู้เช่า" }),
+          el("span", { class: "badge " + (st.llm === "up" ? "done" : "rejected") }, DD.icon("cpu"),
+            st.llm === "up" ? "โมเดล AI ออนไลน์ · Qwen3 0.6B บน ai-01" : "โมเดล AI ออฟไลน์ · ใช้สรุปอัตโนมัติแทน"))),
+      el("div", { class: "chips mt-2" }, st.suggestions.map((q) => el("button", { type: "button", class: "chip", translate: "no", onclick: () => ask(q) }, q))),
+      form, log));
+    redraw();
+    if (!history.length) input.focus();
   }
 
   // ---------------------------------------------------------------- categories

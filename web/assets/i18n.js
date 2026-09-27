@@ -140,6 +140,16 @@
     "หมวดที่ผู้เช่าเลือกได้": "Categories tenants can choose",
     "ปิดหมวดที่หอไม่มี เช่น หอที่ไม่มีลานจอดรถ ผู้เช่าจะไม่เห็นหมวดนั้นในฟอร์ม": "Turn off categories your dorm doesn't have (e.g. no parking). Tenants won't see them in the form.",
 
+    // ---------------------------------------------------------------- AI Insight
+    "ถาม AI": "Ask AI", "ถาม": "Ask", "คำถาม": "Question", "พิมพ์คำถาม เช่น ตอนนี้ค้างกี่เรื่อง": "Type a question, e.g. How many requests are open?",
+    "ถาม AI เกี่ยวกับหอของคุณ": "Ask AI about your dorm",
+    "ระบบคำนวณตัวเลขจากฐานข้อมูลของหอนี้ก่อน แล้วให้ AI เรียบเรียงเป็นคำตอบ AI เห็นเฉพาะตัวเลขสรุป ไม่เห็นชื่อ เบอร์ หรือข้อความของผู้เช่า":
+      "The system first computes the numbers from this dorm's database, then AI phrases the answer. The AI only sees aggregated numbers — never tenants' names, phones or messages.",
+    "โมเดล AI ออนไลน์ · Qwen3 0.6B บน ai-01": "AI model online · Qwen3 0.6B on ai-01", "โมเดล AI ออฟไลน์ · ใช้สรุปอัตโนมัติแทน": "AI model offline · using automatic summary",
+    "ตอบโดย AI ในระบบ (ai-01)": "Answered by in-house AI (ai-01)", "สรุปอัตโนมัติจากตัวเลข": "Automatic summary from the numbers",
+    "ตัวเลขที่ใช้ตอบ (คำนวณจากฐานข้อมูล ไม่ใช่ AI เดา)": "Numbers behind this answer (computed from the database, not guessed by AI)",
+    "กำลังคิด… โมเดลในเครื่อง ai-01 อาจใช้ 10–30 วินาที": "Thinking… the in-house model on ai-01 may take 10–30 seconds", "กำลังสรุป…": "Summarizing…",
+    "ถามถี่เกินไป กรุณารอสักครู่": "Too many questions. Please wait a moment.",
     // ---------------------------------------------------------------- API error messages
     "กรุณายินยอมให้เก็บข้อมูลเพื่อใช้ติดต่อเรื่องแจ้งซ่อม": "Please agree to data collection so we can contact you about this request",
     "กรุณาเข้าสู่ระบบ": "Please sign in", "ค่าสถานะหรือความเร่งด่วนไม่ถูกต้อง": "Invalid status or priority",

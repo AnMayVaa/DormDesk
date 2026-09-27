@@ -10,6 +10,7 @@ BASTION_PRIV=10.0.2.131   # bastion NIC in the private subnet
 APP_ZONE=10.0.2.136/29    # api-01, api-02
 DB=10.0.2.150
 MON=10.0.2.165
+AI=10.0.2.160        # ai-01: local LLM for AI Insight
 
 iptables -P INPUT ACCEPT; iptables -P OUTPUT ACCEPT; iptables -F; iptables -X 2>/dev/null || true
 for CH in INPUT OUTPUT; do
@@ -29,7 +30,14 @@ case "$ROLE" in
     iptables -A INPUT  -p tcp -s $BASTION_PRIV --dport 8000 -j ACCEPT            # Nginx traffic (arrives via tunnel exit)
     iptables -A INPUT  -p tcp -s $BASTION_PRIV --dport 22 -j ACCEPT
     iptables -A INPUT  -p icmp -s $BASTION_PRIV -j ACCEPT
-    iptables -A OUTPUT -p tcp -d $DB --dport 5432 -j ACCEPT                      # database only
+    iptables -A OUTPUT -p tcp -d $DB --dport 5432 -j ACCEPT                      # database
+    iptables -A OUTPUT -p tcp -d $AI --dport 8080 -j ACCEPT                      # AI Insight model server
+    iptables -A OUTPUT -p tcp --dport 587 -j ACCEPT                              # Gmail SMTP (STARTTLS) for notifications
+    ;;
+  ai)    # model server: only the API tier may call it; no outbound at all
+    iptables -A INPUT  -p tcp -s $APP_ZONE --dport 8080 -j ACCEPT
+    iptables -A INPUT  -p tcp -s $BASTION_PRIV --dport 22 -j ACCEPT
+    iptables -A INPUT  -p icmp -s $BASTION_PRIV -j ACCEPT
     ;;
   db)
     iptables -A INPUT  -p tcp -s $APP_ZONE --dport 5432 -j ACCEPT
@@ -45,7 +53,7 @@ case "$ROLE" in
     ;;
   open)  # emergency / package install: allow all
     exit 0 ;;
-  *) echo "role must be web|api|db|mon|open"; exit 1 ;;
+  *) echo "role must be web|api|db|mon|ai|open"; exit 1 ;;
 esac
 # log + drop everything else (rate-limited log so the console does not flood)
 iptables -A INPUT  -m limit --limit 6/min -j LOG --log-prefix "dd-fw-in-drop: "  2>/dev/null || true

@@ -1,0 +1,12 @@
+# AI Insight test (ai-01, Qwen3-0.6B) — 2026-09-27 07:19
+[ai, 12.1s] 30 วันที่ผ่านมาปัญหาไหนเยอะสุด
+  -> 30 วันที่ผ่านมามีการแจ้งซ่อม 36 เรื่อง หมวดที่เยอะที่สุดคือ แอร์ (19 เรื่อง) รองลงมาคือ ของชำรุดในห้อง 5, Parking 4 ถ้าหมวดแรกเกิดซ้ำบ่อย อาจคุ้มที่จะตรวจเช็กเชิงป้องกัน.
+[ai, 8.8s] ตอนนี้ค้างกี่เรื่อง
+  -> ตอนนี้มีเรื่องค้าง 3 เรื่อง (รอดำเนินการ 1, กำลังซ่อม 2) เป็นเรื่องด่วน 1 เรื่อง เรื่องที่ค้างนานที่สุด 135 ชั่วโมง
+[ai, 12.4s] ซ่อมเสร็จเฉลี่ยกี่ชั่วโมง
+  -> DRAFT: ซ่อมเสร็จใน 30 วันที่ผ่านมา 17 เรื่อง ใช้เวลาเฉลี่ย 49 ชั่วโมง หมวดที่ใช้เวลานานที่สุด (ชั่วโมง): แอร์ 119, Parking 70.
+[ai, 3.9s] How many requests are open?
+  -> There are 3 requests open (1 waiting, 2 in progress), with 1 urgent request. The oldest request has been open for 135 hours.
+[ai, 10.9s] Which rooms keep reporting the same problem?
+  -> Rooms reporting the same problem in the last 90 days: room 101 Air-con 4 times, room 103 Air-con 3 times, room 104 Air-con 3 times, room 402 Broken item in room 3 times, room 402 Air-con 3 times. Replacing the equipment may be cheaper than repeat repairs.
+owner A asking dorm 2: 403 forbidden

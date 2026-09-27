@@ -12,7 +12,7 @@ case "${1:-start}" in
     while true; do
       ssh -N -i "$KEY" -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
           -o StrictHostKeyChecking=accept-new \
-          -L 127.0.0.1:8001:10.0.2.140:8000 -L 127.0.0.1:8002:10.0.2.141:8000 root@10.0.2.3 || true
+          -L 127.0.0.1:8001:10.0.2.140:8000 -L 127.0.0.1:8002:10.0.2.141:8000 ddtunnel@10.0.2.3 || true
       sleep 2
     done ;;
   start)

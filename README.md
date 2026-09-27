@@ -2,7 +2,7 @@
 
 > Mini project วิชา 010123218 Cloud Network and Computing · เพื่อนในทีมอ่าน `CONTRIBUTING.md` ก่อนเริ่มงาน
 
-ระบบต้นแบบออนไลน์ที่ **https://45.77.40.35:10201** · เอกสารอยู่ใน `docs/` (เริ่มที่ `docs/DormDesk_HANDOFF.md`)
+ระบบต้นแบบออนไลน์ที่ **https://dormdesk-g02.duckdns.org:10201** (Let's Encrypt · เข้าด้วย IP จะถูกพาไปที่โดเมน) · เอกสารอยู่ใน `docs/` (เริ่มที่ `docs/DormDesk_HANDOFF.md`)
 
 | หน้า | URL |
 |---|---|
@@ -29,9 +29,16 @@ infra/tls/make-cert.sh 45.77.40.35                       # ครั้งแร
 python3 tools/seed_gen.py --base-url https://45.77.40.35:10201   # สร้างข้อมูลเดโม (ล้างข้อมูลเดิม!)
 infra/deploy.sh db --seed    # db-01: schema, RLS, TLS, pg_hba, ข้อมูลเดโม
 infra/deploy.sh api          # api-01 (api2 = api-02)
+infra/deploy.sh ai           # ai-01: llama.cpp + Qwen3-0.6B สำหรับ "ถาม AI"
 infra/deploy.sh web          # web-01: หน้าเว็บ, nginx, HTTPS, SSH tunnel
 python3 tools/smoke_test.py  # ทดสอบจากภายนอก 15 ข้อ
 ```
+
+## HTTPS (Let's Encrypt)
+`infra/tls/renew-letsencrypt.sh && infra/deploy.sh web` ทุก ~60 วัน (ต้องมี `DUCKDNS_DOMAIN`, `DUCKDNS_TOKEN` ใน secrets.env)
+
+## อีเมลแจ้งเตือน
+ใส่ `SMTP_USER` (Gmail) และ `SMTP_PASS` (App Password 16 ตัว) ใน secrets.env แล้ว `infra/deploy.sh api && infra/deploy.sh api2` · `OWNER_ALERT_TO` (ไม่บังคับ) = อีเมลที่รับแจ้งเรื่องใหม่
 
 ## Firewall (iptables ในแต่ละเครื่อง)
 `infra/firewall/apply.sh all` — default deny ขาเข้า/ขาออก + เปิดตามภาคผนวก B (มี rollback อัตโนมัติ 60 วิ ถ้าต่อกลับไม่ได้)

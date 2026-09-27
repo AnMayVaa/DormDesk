@@ -1,0 +1,5 @@
+# Bastion tunnel least-privilege check 2026-09-27T07:02:18Z
+- tunnel runs as ddtunnel (not root): yes
+- shell for ddtunnel: 'This account is currently not available.'
+- forward web-01 -> db-01:5432 via bastion: 'administratively prohibited'
+- forward to api-01/02:8000: works (smoke test 16/16)

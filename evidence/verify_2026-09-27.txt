@@ -1,6 +1,7 @@
-# DormDesk verify — 2026-09-27T05:55:49Z
+# DormDesk verify — 2026-09-27T07:24:41Z
 ## From the internet
 PASS N1 HTTPS entry 45.77.40.35:10201 (open)
+PASS trusted certificate (Let's Encrypt) for dormdesk-g02.duckdns.org
 PASS N2 no other port mapped (10200) (blocked)
 PASS N2 no other port mapped (10202) (blocked)
 PASS plain HTTP is redirected to HTTPS (301)
@@ -19,6 +20,12 @@ PASS db-01 -> api-01:8000 (blocked)
 ## From mon-01
 PASS mon-01 -> db-01:5432 (open)
 PASS mon-01 -> api-01:8000 (blocked)
+## AI tier (ai-01)
+PASS api-01 -> ai-01:8080 (model server) (open)
+PASS web-01 -> ai-01:8080 (blocked)
+PASS db-01 -> ai-01:8080 (blocked)
+PASS ai-01 -> internet (1.1.1.1:443) (blocked)
+PASS ai-01 -> db-01:5432 (blocked)
 ## Inside the database
 PASS A3 RLS: app account without app.dorm_id sees 0 requests
 PASS A3 RLS: with app.dorm_id=2 only one dorm is visible
@@ -27,9 +34,10 @@ PASS Grafana account cannot read personal data
 PASS all API connections to the DB use TLS
 ## Firewall rules loaded (N8)
 web-01: INPUT=DROP OUTPUT=DROP rules=12
-api-01: INPUT=DROP OUTPUT=DROP rules=12
-api-02: INPUT=DROP OUTPUT=DROP rules=12
+api-01: INPUT=DROP OUTPUT=DROP rules=14
+api-02: INPUT=DROP OUTPUT=DROP rules=14
 db-01: INPUT=DROP OUTPUT=DROP rules=12
 mon-01: INPUT=DROP OUTPUT=DROP rules=12
+ai-01: INPUT=DROP OUTPUT=DROP rules=11
 
-20 passed, 0 failed
+26 passed, 0 failed
