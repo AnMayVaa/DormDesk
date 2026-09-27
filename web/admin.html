@@ -16,8 +16,9 @@
   <label class="sr-only" for="dormSel">เลือกหอ</label>
   <select class="select hidden" id="dormSel"></select>
   <div class="spacer"></div>
+  <button class="icon-btn lang-btn" type="button" data-lang-toggle>EN</button>
   <button class="icon-btn" type="button" data-theme-toggle></button>
-  <span id="who" class="row small muted hide-sm hidden"><i data-icon="user"></i><span id="whoName"></span></span>
+  <span id="who" class="row small muted hide-sm hidden"><i data-icon="user"></i><span id="whoName" translate="no"></span></span>
   <button class="icon-btn hidden" id="logout" type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ"><i data-icon="logout"></i></button>
 </div></header>
 
@@ -70,6 +71,7 @@
     <div id="panel" class="mt-2" role="tabpanel"></div>
   </div>
 </main>
+<script src="/assets/i18n.js"></script>
 <script src="/assets/icons.js"></script>
 <script src="/assets/common.js"></script>
 <script src="/assets/admin.js"></script>

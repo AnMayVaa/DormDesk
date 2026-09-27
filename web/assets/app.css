@@ -119,6 +119,7 @@ code, .mono { font-family: var(--mono); font-size: .85em; }
 .btn.sm { min-height: 36px; padding: 0 .8rem; font-size: .85rem; }
 .icon-btn { width: 40px; height: 40px; display: inline-grid; place-items: center; border-radius: var(--r-sm);
   border: 1.5px solid var(--line); background: var(--card); color: var(--ink-2); cursor: pointer; transition: background-color .2s, color .2s; }
+.lang-btn { width: auto; min-width: 40px; padding: 0 .6rem; font: 600 .82rem var(--font); letter-spacing: .02em; }
 .icon-btn:hover { background: var(--surface); color: var(--ink); }
 .btn .bar-loader { width: 46px; height: 4px; border-radius: 4px; background: linear-gradient(90deg, transparent, currentColor, transparent);
   background-size: 200% 100%; animation: shimmer 1s linear infinite; opacity: .7; }

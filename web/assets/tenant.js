@@ -1,4 +1,5 @@
 (function () {
+  const t = (k, v) => DD_I18N.t(k, v);
   const $ = (id) => document.getElementById(id);
   const el = DD.el;
   const code = DD.lastPathPart();
@@ -21,7 +22,7 @@
       const room = await DD.api("/api/rooms/" + encodeURIComponent(code));
       $("dormName").textContent = room.dorm_name;
       $("roomNo").textContent = room.room_no;
-      document.title = "แจ้งซ่อม ห้อง " + room.room_no + " — DormDesk";
+      document.title = t("แจ้งซ่อม ห้อง {n} — DormDesk", { n: room.room_no });
       $("cats").replaceChildren(...room.categories.map((c) => el("div", { class: "tile" },
         el("input", { type: "radio", name: "category_id", value: c.id, id: "cat-" + c.id }),
         el("label", { for: "cat-" + c.id }, DD.icon(DD_CAT_ICON[c.id] || "dots"), c.name_th))));
@@ -48,7 +49,7 @@
     DD.store.set(MY_KEY, ok.map(({ token, title, at }) => ({ token, title, at })));  // forget links that no longer work
     if (!ok.length) return;
     $("mineList").replaceChildren(...ok.map((m) => el("a", { class: "my-item", href: "/t/" + encodeURIComponent(m.token) },
-      DD.badge(m.r.status), el("span", { class: "spacer", text: m.r.title }), el("span", { class: "xs muted", text: DD.ago(m.r.updated_at) }), DD.icon("chevron"))));
+      DD.badge(m.r.status), el("span", { class: "spacer", text: m.r.title, translate: "no" }), el("span", { class: "xs muted", text: DD.ago(m.r.updated_at) }), DD.icon("chevron"))));
     $("mine").classList.remove("hidden");
   }
 
@@ -56,16 +57,16 @@
   $("cats").addEventListener("change", (ev) => {
     $("f-cat").classList.remove("invalid");
     const list = SUGGEST[ev.target.value] || [];
-    $("suggest").replaceChildren(...list.map((t) => el("button", { type: "button", class: "chip", onclick: () => {
-      $("title").value = t; $("f-title").classList.remove("invalid"); $("detail").focus(); } }, t)));
+    $("suggest").replaceChildren(...list.map((s0) => el("button", { type: "button", class: "chip", onclick: () => {
+      $("title").value = t(s0); $("f-title").classList.remove("invalid"); $("detail").focus(); } }, s0)));
   });
 
   // ---------------------------------------------------------------- photos
   function renderThumbs() {
     $("thumbs").replaceChildren(...files.map((f, i) => {
       const url = URL.createObjectURL(f);
-      return el("div", { class: "thumb" }, el("img", { src: url, alt: "รูปที่เลือก " + (i + 1), onload: () => URL.revokeObjectURL(url) }),
-        el("button", { type: "button", "aria-label": "ลบรูปที่ " + (i + 1), onclick: () => { files.splice(i, 1); renderThumbs(); } }, DD.icon("x")));
+      return el("div", { class: "thumb" }, el("img", { src: url, alt: t("รูปที่เลือก {n}", { n: i + 1 }), onload: () => URL.revokeObjectURL(url) }),
+        el("button", { type: "button", "aria-label": t("ลบรูปที่ {n}", { n: i + 1 }), onclick: () => { files.splice(i, 1); renderThumbs(); } }, DD.icon("x")));
     }));
   }
   function addFiles(list) {

@@ -1,4 +1,5 @@
 (function () {
+  const t = (k, v) => DD_I18N.t(k, v);
   const $ = (id) => document.getElementById(id);
   const el = DD.el;
   const token = DD.lastPathPart();
@@ -21,24 +22,24 @@
   async function load() {
     try {
       const r = await DD.api("/api/track/" + encodeURIComponent(token));
-      $("where").replaceChildren(DD.icon("building"), `${r.dorm_name} · ห้อง ${r.room_no} · ${r.category}`);
+      $("where").replaceChildren(DD.icon("building"), el("span", { translate: "no", text: t("{dorm} · ห้อง {room} · {cat}", { dorm: r.dorm_name, room: r.room_no, cat: t(r.category) }) }));
       $("title").textContent = r.title;
-      document.title = r.title + " — ติดตามสถานะ";
+      document.title = t("{title} — ติดตามสถานะ", { title: r.title });
       $("badges").replaceChildren(...[DD.badge(r.status), r.priority === "urgent" ? DD.urgent() : null,
-        el("span", { class: "small muted", text: "แจ้งเมื่อ " + DD.fmt(r.created_at) })].filter(Boolean));
+        el("span", { class: "small muted", text: t("แจ้งเมื่อ {d}", { d: DD.fmt(r.created_at) }) })].filter(Boolean));
       $("stepper").replaceChildren(...stepper(r.status));
       $("detail").textContent = r.detail || "";
       $("detail").classList.toggle("hidden", !r.detail);
       $("photos").replaceChildren(...r.photos.map((id, i) => {
         const src = "/api/track/" + encodeURIComponent(token) + "/photos/" + id;
-        return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": "เปิดรูปที่ " + (i + 1) },
-          el("img", { src, alt: "รูปที่แนบ " + (i + 1), loading: "lazy" }));
+        return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) },
+          el("img", { src, alt: t("รูปที่แนบ {n}", { n: i + 1 }), loading: "lazy" }));
       }));
       $("timeline").replaceChildren(...DD.reveal(r.events.slice().reverse().map((e) => el("li", {},
         el("div", { class: "t-title", text: DD.STATUS[e.to_status] || e.to_status }),
-        el("div", { class: "xs muted", text: DD.fmt(e.created_at) + (e.to_status === "received" && !e.note ? " · ผู้เช่าแจ้งเรื่อง" : "") }),
-        e.note ? el("div", { class: "t-note", text: e.note }) : null))));
-      $("updated").textContent = "อัปเดตล่าสุด " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+        el("div", { class: "xs muted", text: e.to_status === "received" && !e.note ? t("{d} · ผู้เช่าแจ้งเรื่อง", { d: DD.fmt(e.created_at) }) : DD.fmt(e.created_at) }),
+        e.note ? el("div", { class: "t-note", text: e.note, translate: "no" }) : null))));
+      $("updated").textContent = t("อัปเดตล่าสุด {t}", { t: new Date().toLocaleTimeString(DD_I18N.locale, { hour: "2-digit", minute: "2-digit" }) });
       if (first) { $("loading").remove(); $("view").classList.remove("hidden"); $("hist").classList.remove("hidden");
         $("view").classList.add("reveal"); first = false; }
     } catch (e) {

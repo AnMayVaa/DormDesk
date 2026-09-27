@@ -1,3 +1,4 @@
+const t = (k, v) => DD_I18N.t(k, v);
 // Shared helpers. User data is always inserted with textContent (never innerHTML) to prevent XSS.
 const DD = {
   STATUS: { received: "รับเรื่องแล้ว", in_progress: "กำลังดำเนินการ", done: "เสร็จสิ้น", rejected: "ปฏิเสธ / แจ้งซ้ำ" },
@@ -14,7 +15,8 @@ const DD = {
     const body = (res.headers.get("content-type") || "").includes("json") ? await res.json() : null;
     if (!res.ok) {
       const e = (body && body.error) || { code: String(res.status),
-        message: res.status === 429 ? "ส่งคำขอถี่เกินไป กรุณารอสักครู่" : "เกิดข้อผิดพลาด (" + res.status + ") กรุณาลองใหม่" };
+        message: res.status === 429 ? "ส่งคำขอถี่เกินไป กรุณารอสักครู่" : t("เกิดข้อผิดพลาด ({n}) กรุณาลองใหม่", { n: res.status }) };
+      e.message = DD_I18N.tMessage(e.message);
       e.status = res.status;
       throw e;
     }
@@ -42,14 +44,14 @@ const DD = {
 
   fmt(ts, withYear) {
     if (!ts) return "-";
-    return new Date(ts).toLocaleString("th-TH", { day: "numeric", month: "short", year: withYear ? "2-digit" : undefined, hour: "2-digit", minute: "2-digit" });
+    return new Date(ts).toLocaleString(DD_I18N.locale, { day: "numeric", month: "short", year: withYear ? "2-digit" : undefined, hour: "2-digit", minute: "2-digit" });
   },
   ago(ts) {
     const m = (Date.now() - new Date(ts).getTime()) / 6e4;
-    if (m < 1) return "เมื่อสักครู่";
-    if (m < 60) return Math.round(m) + " นาทีที่แล้ว";
-    if (m < 48 * 60) return Math.round(m / 60) + " ชม.ที่แล้ว";
-    return Math.round(m / 1440) + " วันที่แล้ว";
+    if (m < 1) return t("เมื่อสักครู่");
+    if (m < 60) return t("{n} นาทีที่แล้ว", { n: Math.round(m) });
+    if (m < 48 * 60) return t("{n} ชม.ที่แล้ว", { n: Math.round(m / 60) });
+    return t("{n} วันที่แล้ว", { n: Math.round(m / 1440) });
   },
   lastPathPart() { return decodeURIComponent(location.pathname.split("/").filter(Boolean).pop() || ""); },
 

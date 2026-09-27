@@ -1,4 +1,5 @@
 (function () {
+  const t = (k, v) => DD_I18N.t(k, v);
   const $ = (id) => document.getElementById(id);
   const el = DD.el;
   const S = { dorms: [], dormId: null, tab: "dash", reqs: [], filter: "open", urgentOnly: false, q: "" };
@@ -12,7 +13,7 @@
     S.dorms = await DD.api("/api/admin/dorms");
     const last = DD.store.get("dd-admin-dorm", null);
     S.dormId = (S.dorms.find((d) => d.id === last) || S.dorms[0] || {}).id ?? null;
-    $("dormSel").replaceChildren(...S.dorms.map((d) => el("option", { value: d.id, text: d.name })));
+    $("dormSel").replaceChildren(...S.dorms.map((d) => el("option", { value: d.id, text: d.name, translate: "no" })));
     $("dormSel").value = S.dormId;
     $("dormSel").classList.toggle("hidden", S.dorms.length < 2);
     ["who", "logout"].forEach((i) => $(i).classList.remove("hidden"));
@@ -65,10 +66,11 @@
   async function render(toastAfter) {
     const dorm = S.dorms.find((d) => d.id === S.dormId);
     $("dormTitle").textContent = dorm ? dorm.name : "";
+    $("dormTitle").setAttribute("translate", "no");
     $("tabs").querySelectorAll("[data-tab]").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)); b.tabIndex = b.dataset.tab === S.tab ? 0 : -1; });
     try {
       await ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats })[S.tab]();
-      $("updated").textContent = "อัปเดต " + new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+      $("updated").textContent = t("อัปเดต {t}", { t: new Date().toLocaleTimeString(DD_I18N.locale, { hour: "2-digit", minute: "2-digit" }) });
       if (toastAfter === true) DD.toast("อัปเดตข้อมูลแล้ว");
     } catch (e) { fail(e); }
   }
@@ -98,19 +100,19 @@
       el("div", { class: "kpis" }, DD.reveal([
         kpi("inbox", "sky", d.open, "เรื่องที่ยังไม่เสร็จ"),
         kpi("alert", "pink", d.overdue_48h.length, "ค้างเกิน 48 ชม."),
-        kpi("clock", "amber", avg == null ? "–" : avg + " ชม.", "เวลาซ่อมเฉลี่ย (30 วัน)"),
+        kpi("clock", "amber", avg == null ? "–" : t("{h} ชม.", { h: avg }), "เวลาซ่อมเฉลี่ย (30 วัน)"),
         kpi("checkCircle", "green", d.by_status.done || 0, "ซ่อมเสร็จทั้งหมด")])),
       el("div", { class: "dash-grid" },
         el("section", { class: "card reveal", "data-i": 4 }, el("div", { class: "card-title" }, DD.icon("alert"), el("h2", { class: "mt-0", text: "ค้างเกิน 48 ชั่วโมง" })),
           d.overdue_48h.length ? el("div", { class: "list" }, d.overdue_48h.map(reqRow))
-            : DD.empty("checkCircle", "ไม่มีเรื่องค้าง", "ทุกเรื่องได้รับการดูแลภายใน 48 ชั่วโมง")),
+            : DD.empty("checkCircle", "ไม่มีเรื่องค้างเกินกำหนด", "ทุกเรื่องได้รับการดูแลภายใน 48 ชั่วโมง")),
         el("section", { class: "card reveal", "data-i": 5 }, el("div", { class: "card-title" }, DD.icon("chart"), el("h2", { class: "mt-0", text: "หมวดที่แจ้งบ่อย (30 วัน)" })),
           bars(d.by_category_30d, "category", "n"))),
       el("div", { class: "dash-grid b" },
         el("section", { class: "card reveal", "data-i": 6 }, el("div", { class: "card-title" }, DD.icon("repeat"), el("h2", { class: "mt-0", text: "ห้องที่แจ้งซ้ำหมวดเดิม (90 วัน)" })),
           d.repeat_rooms_90d.length ? el("div", { class: "list" }, d.repeat_rooms_90d.map((r) => el("div", { class: "cat-row" },
-            el("span", { class: "room-no", text: r.room_no }), el("span", { class: "spacer", text: r.category }),
-            el("span", { class: "badge urgent", text: r.n + " ครั้ง" }))))
+            el("span", { class: "room-no", text: r.room_no, translate: "no" }), el("span", { class: "spacer", text: r.category }),
+            el("span", { class: "badge urgent", text: t("{n} ครั้ง", { n: r.n }) }))))
             : DD.empty("checkCircle", "ยังไม่มีห้องที่เสียซ้ำ", null)),
         el("section", { class: "card reveal", "data-i": 7 }, el("div", { class: "card-title" }, DD.icon("clock"), el("h2", { class: "mt-0", text: "เวลาซ่อมเฉลี่ยตามหมวด (ชม., 90 วัน)" })),
           bars(d.resolve_hours_by_category_90d, "category", "hours", "", avg || 48))));
@@ -120,9 +122,9 @@
 
   // ---------------------------------------------------------------- requests
   function reqRow(r) {
-    return el("button", { class: "list-row", type: "button", onclick: () => openRequest(r.id), "aria-label": `ห้อง ${r.room_no} ${r.title}` },
-      el("span", { class: "room-no", text: r.room_no }),
-      el("span", {}, el("div", { class: "row-title", text: r.title }),
+    return el("button", { class: "list-row", type: "button", onclick: () => openRequest(r.id), "aria-label": t("ห้อง {room} {title}", { room: r.room_no, title: r.title }) },
+      el("span", { class: "room-no", text: r.room_no, translate: "no" }),
+      el("span", {}, el("div", { class: "row-title", text: r.title, translate: "no" }),
         el("div", { class: "row-meta" }, r.category ? el("span", { text: r.category }) : null, el("span", { text: DD.ago(r.created_at) }),
           r.photo_count ? el("span", { class: "row" }, DD.icon("camera"), r.photo_count) : null)),
       el("span", { class: "row row-end" }, r.priority === "urgent" ? DD.urgent() : null, DD.badge(r.status)));
@@ -149,7 +151,7 @@
     const seg = el("div", { class: "seg", role: "group", "aria-label": "กรองตามสถานะ" }, segs.map(([k, l]) =>
       el("button", { type: "button", "aria-pressed": String(S.filter === k), onclick: (ev) => {
         S.filter = k; seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false"));
-        ev.currentTarget.setAttribute("aria-pressed", "true"); draw(); } }, `${l} ${counts[k] || 0}`)));
+        ev.currentTarget.setAttribute("aria-pressed", "true"); draw(); } }, t("{label} {n}", { label: t(l), n: counts[k] || 0 }))));
     const urgent = el("label", { class: "check" }, el("input", { type: "checkbox", checked: S.urgentOnly, onchange: (e) => { S.urgentOnly = e.target.checked; draw(); } }), "เฉพาะเรื่องด่วน");
     $("panel").replaceChildren(el("section", { class: "card" },
       el("div", { class: "toolbar" }, el("div", { class: "input-icon" }, DD.icon("search"), search), urgent), seg, el("div", { class: "mt-2" }, list)));
@@ -182,34 +184,34 @@
     const initials = (r.reporter_name || "?").trim().slice(0, 1);
     dr.replaceChildren(
       el("div", { class: "drawer-head" },
-        el("div", { class: "spacer" }, el("div", { class: "small muted row" }, DD.icon("door"), `ห้อง ${r.room_no} · ${r.category}`),
-          el("h2", { class: "mt-1", text: r.title }),
+        el("div", { class: "spacer" }, el("div", { class: "small muted row" }, DD.icon("door"), el("span", { translate: "no", text: t("ห้อง {room} · {cat}", { room: r.room_no, cat: t(r.category) }) })),
+          el("h2", { class: "mt-1", text: r.title, translate: "no" }),
           el("div", { class: "row wrap" }, DD.badge(r.status), r.priority === "urgent" ? DD.urgent() : null,
-            el("span", { class: "xs muted", text: "แจ้ง " + DD.fmt(r.created_at) + " · " + DD.ago(r.created_at) }))),
+            el("span", { class: "xs muted", text: t("แจ้ง {d} · {ago}", { d: DD.fmt(r.created_at), ago: DD.ago(r.created_at) }) }))),
         closeBtn),
       el("div", { class: "drawer-body stack" },
-        r.detail ? el("p", { text: r.detail }) : null,
+        r.detail ? el("p", { text: r.detail, translate: "no" }) : null,
         r.photos.length ? el("div", { class: "photos" }, r.photos.map((pid, i) => {
           const src = `/api/admin/requests/${id}/photos/${pid}`;
-          return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": "เปิดรูปที่ " + (i + 1) }, el("img", { src, alt: "รูปที่แนบ " + (i + 1), loading: "lazy" }));
+          return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) }, el("img", { src, alt: t("รูปที่แนบ {n}", { n: i + 1 }), loading: "lazy" }));
         })) : null,
         el("div", { class: "card" }, el("div", { class: "contact" }, el("div", { class: "avatar", text: initials }),
-          el("div", { class: "spacer" }, el("div", { class: "row-title", text: r.reporter_name }),
+          el("div", { class: "spacer" }, el("div", { class: "row-title", text: r.reporter_name, translate: "no" }),
             el("div", { class: "xs muted", text: r.reporter_email || "ไม่ได้ให้อีเมล" })),
           el("a", { class: "btn sm", href: "tel:" + r.reporter_phone.replace(/[^0-9+]/g, "") }, DD.icon("phone"), r.reporter_phone))),
         el("div", {}, el("div", { class: "field-label" }, "เปลี่ยนสถานะ"),
           el("div", { class: "field mt-0" }, el("label", { for: "note", class: "small muted" }, "ข้อความถึงผู้เช่า (ไม่บังคับ)"), note),
           el("div", { class: "status-actions mt-1" }, Object.keys(DD.STATUS).map((s) => el("button", {
             type: "button", class: "btn ghost", "aria-current": s === r.status ? "true" : null, disabled: s === r.status,
-            onclick: () => update({ status: s }, "เปลี่ยนเป็น \"" + DD.STATUS[s] + "\" แล้ว") }, DD.icon(DD.STATUS_ICON[s]), DD.STATUS[s]))),
+            onclick: () => update({ status: s }, t("เปลี่ยนเป็น \"{s}\" แล้ว", { s: t(DD.STATUS[s]) })) }, DD.icon(DD.STATUS_ICON[s]), DD.STATUS[s]))),
           el("div", { class: "cat-row mt-1" }, DD.icon("flame"), el("span", { class: "spacer", text: "เรื่องด่วน" }),
             el("label", { class: "switch" }, el("input", { type: "checkbox", id: "prio", checked: r.priority === "urgent", "aria-label": "ตั้งเป็นเรื่องด่วน",
               onchange: (e) => update({ priority: e.target.checked ? "urgent" : "normal" }, e.target.checked ? "ตั้งเป็นเรื่องด่วนแล้ว" : "ตั้งเป็นเรื่องปกติแล้ว") }), el("span")))),
         el("div", {}, el("h3", { text: "ประวัติ" }),
           el("ul", { class: "timeline mt-1" }, r.events.slice().reverse().map((e) => el("li", {},
             el("div", { class: "t-title", text: DD.STATUS[e.to_status] || e.to_status }),
-            el("div", { class: "xs muted", text: DD.fmt(e.created_at) + " · " + (e.actor === "tenant" ? "ผู้เช่า" : "เจ้าของหอ") }),
-            e.note ? el("div", { class: "t-note", text: e.note }) : null))))));
+            el("div", { class: "xs muted", text: t(e.actor === "tenant" ? "{d} · ผู้เช่า" : "{d} · เจ้าของหอ", { d: DD.fmt(e.created_at) }) }),
+            e.note ? el("div", { class: "t-note", text: e.note, translate: "no" }) : null))))));
     closeBtn.focus();
   }
 
@@ -222,7 +224,7 @@
       ev.preventDefault();
       if (!input.value.trim()) { input.focus(); return; }
       try { const r = await DD.api(`/api/admin/dorms/${S.dormId}/rooms`, { method: "POST", json: { room_no: input.value.trim() } });
-        DD.toast("เพิ่มห้อง " + r.room_no + " แล้ว"); renderRooms(); } catch (e) { fail(e); }
+        DD.toast(t("เพิ่มห้อง {room} แล้ว", { room: r.room_no })); renderRooms(); } catch (e) { fail(e); }
     } }, el("div", { class: "input-icon" }, DD.icon("door"), input), el("button", { class: "btn", type: "submit" }, DD.icon("plus"), "เพิ่มห้อง"));
     const filter = el("input", { class: "input", type: "search", placeholder: "ค้นหาห้อง", "aria-label": "ค้นหาห้อง" });
     const grid = el("div", { class: "room-grid mt-2" });
@@ -232,23 +234,23 @@
       grid.replaceChildren(...(list.length ? list.map((r) => {
         const link = location.origin + "/r/" + r.room_code;
         return el("div", { class: "room-card" },
-          el("div", { class: "row" }, el("span", { class: "room-no", text: "ห้อง " + r.room_no }), el("span", { class: "spacer" }),
-            r.open ? el("span", { class: "badge in_progress", text: r.open + " เรื่องค้าง" }) : el("span", { class: "badge done", text: "ไม่มีเรื่องค้าง" })),
+          el("div", { class: "row" }, el("span", { class: "room-no", text: t("ห้อง {room}", { room: r.room_no }), translate: "no" }), el("span", { class: "spacer" }),
+            r.open ? el("span", { class: "badge in_progress", text: t("{n} เรื่องค้าง", { n: r.open }) }) : el("span", { class: "badge done", text: "ไม่มีเรื่องค้าง" })),
           el("div", { class: "code", text: link }),
           el("div", { class: "row" },
-            el("button", { class: "btn sm", type: "button", onclick: () => navigator.clipboard.writeText(link).then(() => DD.toast("คัดลอกลิงก์ห้อง " + r.room_no + " แล้ว"), () => DD.toast("คัดลอกไม่ได้", "err")) }, DD.icon("copy"), "คัดลอกลิงก์"),
+            el("button", { class: "btn sm", type: "button", onclick: () => navigator.clipboard.writeText(link).then(() => DD.toast(t("คัดลอกลิงก์ห้อง {room} แล้ว", { room: r.room_no })), () => DD.toast("คัดลอกไม่ได้", "err")) }, DD.icon("copy"), "คัดลอกลิงก์"),
             el("span", { class: "spacer" }),
-            el("a", { class: "icon-btn", href: link, target: "_blank", rel: "noopener", title: "เปิดหน้าแจ้งซ่อมของห้องนี้", "aria-label": "เปิดหน้าแจ้งซ่อมห้อง " + r.room_no }, DD.icon("eye")),
-            el("button", { class: "icon-btn", type: "button", title: "เปลี่ยนลิงก์ (ลิงก์เก่าใช้ไม่ได้ทันที)", "aria-label": "เปลี่ยนลิงก์ห้อง " + r.room_no, onclick: async () => {
-              const ok = await DD.confirm({ title: `เปลี่ยนลิงก์ห้อง ${r.room_no}?`, text: "ลิงก์เก่าจะใช้ไม่ได้ทันที ใช้เมื่อผู้เช่าย้ายออกหรือลิงก์หลุด เรื่องที่เคยแจ้งไว้ยังอยู่ครบ", ok: "เปลี่ยนลิงก์", danger: true });
+            el("a", { class: "icon-btn", href: link, target: "_blank", rel: "noopener", title: "เปิดหน้าแจ้งซ่อมของห้องนี้", "aria-label": t("เปิดหน้าแจ้งซ่อมห้อง {room}", { room: r.room_no }) }, DD.icon("eye")),
+            el("button", { class: "icon-btn", type: "button", title: "เปลี่ยนลิงก์ (ลิงก์เก่าใช้ไม่ได้ทันที)", "aria-label": t("เปลี่ยนลิงก์ห้อง {room}", { room: r.room_no }), onclick: async () => {
+              const ok = await DD.confirm({ title: t("เปลี่ยนลิงก์ห้อง {room}?", { room: r.room_no }), text: "ลิงก์เก่าจะใช้ไม่ได้ทันที ใช้เมื่อผู้เช่าย้ายออกหรือลิงก์หลุด เรื่องที่เคยแจ้งไว้ยังอยู่ครบ", ok: "เปลี่ยนลิงก์", danger: true });
               if (!ok) return;
-              try { await DD.api(`/api/admin/rooms/${r.id}/rotate-code`, { method: "POST" }); DD.toast("ออกลิงก์ใหม่ให้ห้อง " + r.room_no + " แล้ว"); renderRooms(); } catch (e) { fail(e); }
+              try { await DD.api(`/api/admin/rooms/${r.id}/rotate-code`, { method: "POST" }); DD.toast(t("ออกลิงก์ใหม่ให้ห้อง {room} แล้ว", { room: r.room_no })); renderRooms(); } catch (e) { fail(e); }
             } }, DD.icon("keyRotate"))));
       }) : [DD.empty("door", q ? "ไม่พบห้องนี้" : "ยังไม่มีห้อง", q ? null : "เพิ่มห้องด้านบน แล้วส่งลิงก์ให้ผู้เช่าทาง LINE")]));
     };
     filter.addEventListener("input", draw);
     $("panel").replaceChildren(el("section", { class: "card" },
-      el("div", { class: "card-title" }, DD.icon("link"), el("h2", { class: "mt-0", text: `ห้องทั้งหมด ${rooms.length} ห้อง` })),
+      el("div", { class: "card-title" }, DD.icon("link"), el("h2", { class: "mt-0", text: t("ห้องทั้งหมด {n} ห้อง", { n: rooms.length }) })),
       el("p", { class: "small muted", text: "ส่งลิงก์ประจำห้องให้ผู้เช่าตอนย้ายเข้า ผู้เช่าเปิดลิงก์แล้วแจ้งซ่อมได้ทันทีโดยไม่ต้องสมัคร" }),
       form, el("div", { class: "input-icon" }, DD.icon("search"), filter), grid));
     draw();
@@ -266,7 +268,7 @@
         el("label", { class: "switch" }, el("input", { type: "checkbox", id: "cat-" + c.id, checked: c.enabled, onchange: async (ev) => {
           const on = ev.target.checked;
           try { await DD.api(`/api/admin/dorms/${S.dormId}/categories`, { method: "PATCH", json: { category_id: c.id, enabled: on } });
-            DD.toast((on ? "เปิด" : "ปิด") + "หมวด " + c.name_th + " แล้ว"); }
+            DD.toast(t(on ? "เปิดหมวด {c} แล้ว" : "ปิดหมวด {c} แล้ว", { c: t(c.name_th) })); }
           catch (e) { ev.target.checked = !on; fail(e); }
         } }), el("span"))))))));
   }

@@ -13,7 +13,8 @@
 <a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
 <header class="topbar"><div class="container narrow">
   <span class="brand"><span class="brand-mark"><i data-icon="home"></i></span><span class="brand-text">Dorm<span>Desk</span></span></span>
-  <div class="spacer"></div><button class="icon-btn" type="button" data-theme-toggle></button>
+  <div class="spacer"></div><button class="icon-btn lang-btn" type="button" data-lang-toggle>EN</button>
+  <button class="icon-btn" type="button" data-theme-toggle></button>
 </div></header>
 
 <main id="main" class="container narrow">
@@ -22,8 +23,8 @@
 
   <div id="page" class="hidden">
     <div class="page-head reveal">
-      <span class="room-pill"><i data-icon="building"></i><span id="dormName"></span></span>
-      <h1 class="mt-1">แจ้งซ่อม ห้อง <span id="roomNo"></span></h1>
+      <span class="room-pill"><i data-icon="building"></i><span id="dormName" translate="no"></span></span>
+      <h1 class="mt-1">แจ้งซ่อม ห้อง <span id="roomNo" translate="no"></span></h1>
       <p class="muted">ไม่ต้องสมัครสมาชิก ส่งแล้วจะได้ลิงก์ไว้ติดตามสถานะ</p>
     </div>
 
@@ -105,6 +106,7 @@
     </section>
   </div>
 </main>
+<script src="/assets/i18n.js"></script>
 <script src="/assets/icons.js"></script>
 <script src="/assets/common.js"></script>
 <script src="/assets/tenant.js"></script>
