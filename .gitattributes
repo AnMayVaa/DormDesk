@@ -1,0 +1,5 @@
+# Scripts run on Linux containers: keep LF even when checked out on Windows
+* text=auto eol=lf
+*.woff2 binary
+*.png binary
+*.jpg binary

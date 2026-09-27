@@ -1,0 +1,25 @@
+# A9 failover test (api-01 killed during test) 2026-09-27T05:49:47Z
+api-01 stopped
+{"status":"ok","db":"ok","served_by":"api-02"} http=200
+{"status":"ok","db":"ok","served_by":"api-02"} http=200
+{"status":"ok","db":"ok","served_by":"api-02"} http=200
+{"status":"ok","db":"ok","served_by":"api-02"} http=200
+PASS N1 health over HTTPS  ({'status': 'ok', 'db': 'ok', 'served_by': 'api-02'})
+PASS tenant opens room link  (101)
+PASS tenant creates request  (201)
+PASS same Idempotency-Key does not create a duplicate
+PASS tracking link works
+PASS A4 guessed room code rejected
+PASS A4 guessed tracking token rejected
+PASS admin API needs login
+PASS owner A login
+PASS owner A sees only dorm 1  ([{'id': 1, 'name': 'หอพักบ้านสบาย'}])
+PASS A1 owner A blocked from dorm 2 list  (403)
+PASS A1 owner A blocked from dorm 2 dashboard  (403)
+PASS owner A updates status
+PASS tenant sees new status
+PASS A2 owner B cannot modify dorm 1 request  (403)
+PASS dashboard
+
+16/16 passed
+api-01 restarted: {"status":"ok","db":"ok","served_by":"api-01"}

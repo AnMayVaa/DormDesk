@@ -1,0 +1,35 @@
+# DormDesk verify — 2026-09-27T05:55:49Z
+## From the internet
+PASS N1 HTTPS entry 45.77.40.35:10201 (open)
+PASS N2 no other port mapped (10200) (blocked)
+PASS N2 no other port mapped (10202) (blocked)
+PASS plain HTTP is redirected to HTTPS (301)
+## From web-01 (public subnet) — assume it is compromised
+PASS N5 web-01 -> db-01:5432 (blocked)
+PASS web-01 -> api-01:8000 directly (blocked)
+PASS web-01 -> internet (1.1.1.1:443) (blocked)
+PASS web-01 -> bastion:22 (tunnel) (open)
+## From api-01 (private subnet)
+PASS N6 api-01 -> db-01:5432 (open)
+PASS api-01 -> mon-01:3000 (blocked)
+PASS api-01 -> internet (1.1.1.1:443) (blocked)
+## From db-01
+PASS N7 db-01 -> internet (1.1.1.1:443) (blocked)
+PASS db-01 -> api-01:8000 (blocked)
+## From mon-01
+PASS mon-01 -> db-01:5432 (open)
+PASS mon-01 -> api-01:8000 (blocked)
+## Inside the database
+PASS A3 RLS: app account without app.dorm_id sees 0 requests
+PASS A3 RLS: with app.dorm_id=2 only one dorm is visible
+PASS least privilege: app account cannot DELETE
+PASS Grafana account cannot read personal data
+PASS all API connections to the DB use TLS
+## Firewall rules loaded (N8)
+web-01: INPUT=DROP OUTPUT=DROP rules=12
+api-01: INPUT=DROP OUTPUT=DROP rules=12
+api-02: INPUT=DROP OUTPUT=DROP rules=12
+db-01: INPUT=DROP OUTPUT=DROP rules=12
+mon-01: INPUT=DROP OUTPUT=DROP rules=12
+
+20 passed, 0 failed

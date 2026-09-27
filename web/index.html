@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DormDesk — ระบบแจ้งซ่อมหอพัก</title>
+<meta name="description" content="ผู้เช่าแจ้งซ่อมผ่านลิงก์ประจำห้อง ติดตามสถานะได้เอง เจ้าของหอเห็นทุกเรื่องและตัวเลขการซ่อมในที่เดียว">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/prompt-700-thai.woff2" as="font" type="font/woff2" crossorigin>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header class="topbar"><div class="container">
+  <a class="brand" href="/"><span class="brand-mark"><i data-icon="home"></i></span><span class="brand-text">Dorm<span>Desk</span></span></a>
+  <div class="spacer"></div>
+  <button class="icon-btn" type="button" data-theme-toggle></button>
+  <a class="btn" href="/admin"><i data-icon="lock"></i><span>สำหรับเจ้าของหอ</span></a>
+</div></header>
+
+<main id="main">
+  <section class="hero"><div class="container hero-grid">
+    <div class="reveal">
+      <div class="eyebrow"><i data-icon="shield"></i>ข้อมูลแต่ละหอแยกขาดจากกัน · เข้ารหัสทุกการเชื่อมต่อ</div>
+      <h1>แจ้งซ่อมหอพัก<br><em>ไม่จมหายในแชท</em></h1>
+      <p class="lead">ผู้เช่าแจ้งผ่านลิงก์ประจำห้องได้ในหนึ่งนาที พร้อมรูป และติดตามสถานะเองได้ทุกเมื่อ
+        เจ้าของหอเห็นทุกเรื่องเรียงตามความเร่งด่วน และรู้ว่าอะไรเสียบ่อย ซ่อมเร็วแค่ไหน</p>
+      <div class="row wrap">
+        <a class="btn" href="/admin"><i data-icon="building"></i>เข้าสู่ระบบเจ้าของหอ</a>
+        <a class="btn ghost" href="#how"><i data-icon="chevron"></i>ดูวิธีทำงาน</a>
+      </div>
+      <p class="small muted mt-2">ผู้เช่า: เปิดลิงก์ที่เจ้าของหอส่งให้ทาง LINE ตอนย้ายเข้า ไม่ต้องสมัครสมาชิก</p>
+    </div>
+
+    <div class="hero-visual reveal" data-i="2" aria-hidden="true">
+      <div class="phone">
+        <div class="row small muted"><i data-icon="building"></i>หอพักบ้านสบาย · ห้อง 305</div>
+        <h3 class="mt-1">แอร์ไม่เย็น มีน้ำหยด</h3>
+        <span class="badge in_progress"><i data-icon="wrench"></i>กำลังดำเนินการ</span>
+        <div class="stepper">
+          <div class="step done"><div class="dot"><i data-icon="check"></i></div>รับเรื่อง</div>
+          <div class="step current"><div class="dot"><i data-icon="wrench"></i></div>กำลังซ่อม</div>
+          <div class="step"><div class="dot"><i data-icon="checkCircle"></i></div>เสร็จสิ้น</div>
+        </div>
+        <ul class="timeline mt-2">
+          <li><div class="t-title">กำลังดำเนินการ</div><div class="xs muted">วันนี้ 13:40 · เจ้าของหอ</div>
+            <div class="t-note">ช่างจะเข้าห้องวันนี้ 17:00 น.</div></li>
+          <li><div class="t-title">รับเรื่องแล้ว</div><div class="xs muted">วันนี้ 09:12 · ผู้เช่า</div></li>
+        </ul>
+      </div>
+      <div class="float-card a"><span class="badge done"><i data-icon="checkCircle"></i>เสร็จสิ้น</span>ห้อง 212 · ก๊อกน้ำรั่ว</div>
+      <div class="float-card b"><i data-icon="clock"></i>ซ่อมเฉลี่ย 18 ชม.</div>
+    </div>
+  </div></section>
+
+  <div class="container" id="how">
+    <section class="feature">
+      <div class="feature-text">
+        <div class="feature-icon"><i data-icon="link"></i></div>
+        <div class="label-caps">ผู้เช่า</div>
+        <h2>ลิงก์ประจำห้อง แจ้งได้ในหนึ่งนาที</h2>
+        <p class="muted">ระบบรู้ทันทีว่าแจ้งจากหอไหน ห้องไหน ผู้เช่าไม่ต้องสมัคร ไม่ต้องจำรหัส
+          เลือกหมวดปัญหา เขียนสั้น ๆ แนบรูป แล้วได้ลิงก์ติดตามกลับไป</p>
+        <ul class="ticks">
+          <li><i data-icon="check"></i>หมวดปัญหา 9 แบบ เจ้าของหอเปิด-ปิดเองได้</li>
+          <li><i data-icon="check"></i>ลบพิกัด GPS ออกจากรูปอัตโนมัติ</li>
+          <li><i data-icon="check"></i>ลิงก์หลุดหรือผู้เช่าย้ายออก เปลี่ยนลิงก์ใหม่ได้ทันที</li>
+        </ul>
+      </div>
+      <div class="feature-visual" aria-hidden="true">
+        <div class="field-label">ปัญหาเกี่ยวกับอะไร</div>
+        <div class="tiles">
+          <div class="tile"><input type="radio" tabindex="-1"><label><i data-icon="zap"></i>ไฟฟ้า</label></div>
+          <div class="tile"><input type="radio" tabindex="-1"><label><i data-icon="droplet"></i>น้ำ / ประปา</label></div>
+          <div class="tile"><input type="radio" checked tabindex="-1"><label><i data-icon="snow"></i>แอร์</label></div>
+          <div class="tile"><input type="radio" tabindex="-1"><label><i data-icon="elevator"></i>ลิฟต์</label></div>
+          <div class="tile"><input type="radio" tabindex="-1"><label><i data-icon="sofa"></i>ของในห้อง</label></div>
+          <div class="tile"><input type="radio" tabindex="-1"><label><i data-icon="package"></i>พัสดุ</label></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="feature flip">
+      <div class="feature-text">
+        <div class="feature-icon"><i data-icon="activity"></i></div>
+        <div class="label-caps">ติดตามสถานะ</div>
+        <h2>ไม่ต้องทักถามซ้ำว่าถึงไหนแล้ว</h2>
+        <p class="muted">ทุกครั้งที่เจ้าของหอเปลี่ยนสถานะหรือฝากข้อความ ผู้เช่าเห็นทันทีจากลิงก์ติดตาม
+          และหน้าห้องจะจำเรื่องที่เคยแจ้งไว้ในเครื่อง</p>
+      </div>
+      <div class="feature-visual" aria-hidden="true">
+        <div class="stepper mt-0">
+          <div class="step done"><div class="dot"><i data-icon="check"></i></div>รับเรื่อง</div>
+          <div class="step done"><div class="dot"><i data-icon="check"></i></div>กำลังซ่อม</div>
+          <div class="step current"><div class="dot"><i data-icon="checkCircle"></i></div>เสร็จสิ้น</div>
+        </div>
+        <div class="my-item mt-2"><span class="badge done"><i data-icon="checkCircle"></i>เสร็จสิ้น</span>
+          <span class="spacer">ไฟในห้องน้ำดับ</span><span class="xs muted">2 วันที่แล้ว</span></div>
+      </div>
+    </section>
+
+    <section class="feature">
+      <div class="feature-text">
+        <div class="feature-icon"><i data-icon="chart"></i></div>
+        <div class="label-caps">เจ้าของหอ</div>
+        <h2>ตัวเลขที่ช่วยตัดสินใจ ไม่ใช่แค่กล่องข้อความ</h2>
+        <p class="muted">รู้ว่าเรื่องไหนค้างเกิน 48 ชั่วโมง หมวดไหนแจ้งบ่อย ช่างใช้เวลาเฉลี่ยเท่าไร
+          และห้องไหนเสียซ้ำจนควรเปลี่ยนอุปกรณ์ ดูแลหลายหอได้ในบัญชีเดียว</p>
+        <ul class="ticks">
+          <li><i data-icon="check"></i>เรียงงานตามความเร่งด่วนและอายุของเรื่อง</li>
+          <li><i data-icon="check"></i>ประวัติการเปลี่ยนสถานะทุกครั้ง</li>
+        </ul>
+      </div>
+      <div class="feature-visual" aria-hidden="true">
+        <div class="bars">
+          <div class="bar"><span>แอร์</span><span class="track"><span class="fill" data-w="92"></span></span><span class="val">9</span></div>
+          <div class="bar"><span>น้ำ / ประปา</span><span class="track"><span class="fill" data-w="61"></span></span><span class="val">6</span></div>
+          <div class="bar"><span>ของในห้อง</span><span class="track"><span class="fill" data-w="51"></span></span><span class="val">5</span></div>
+          <div class="bar"><span>ไฟฟ้า</span><span class="track"><span class="fill warm" data-w="30"></span></span><span class="val">3</span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="footer"><div class="container row wrap">
+  <span>DormDesk · group02 · 010123218 Cloud Network and Computing</span><span class="spacer"></span>
+  <span class="row small"><i data-icon="lock"></i>HTTPS · API และฐานข้อมูลอยู่ใน private subnet</span>
+</div></footer>
+<script src="/assets/icons.js"></script>
+<script src="/assets/common.js"></script>
+</body>
+</html>

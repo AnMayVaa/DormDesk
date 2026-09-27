@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/app.css">
+<title>แจ้งซ่อม — DormDesk</title>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header class="topbar"><div class="container narrow">
+  <span class="brand"><span class="brand-mark"><i data-icon="home"></i></span><span class="brand-text">Dorm<span>Desk</span></span></span>
+  <div class="spacer"></div><button class="icon-btn" type="button" data-theme-toggle></button>
+</div></header>
+
+<main id="main" class="container narrow">
+  <div id="loading" class="card pad-lg mt-3" aria-busy="true"><div class="skel title"></div><div class="skel block"></div><div class="skel line"></div><div class="skel line"></div></div>
+  <div id="loadErr" class="hidden mt-3"></div>
+
+  <div id="page" class="hidden">
+    <div class="page-head reveal">
+      <span class="room-pill"><i data-icon="building"></i><span id="dormName"></span></span>
+      <h1 class="mt-1">แจ้งซ่อม ห้อง <span id="roomNo"></span></h1>
+      <p class="muted">ไม่ต้องสมัครสมาชิก ส่งแล้วจะได้ลิงก์ไว้ติดตามสถานะ</p>
+    </div>
+
+    <section id="mine" class="card hidden reveal" data-i="1" aria-labelledby="mine-t">
+      <div class="card-title"><i data-icon="clock"></i><h2 id="mine-t" class="mt-0">เรื่องที่คุณเคยแจ้งจากเครื่องนี้</h2></div>
+      <div class="my-list" id="mineList"></div>
+    </section>
+
+    <form id="form" class="card pad-lg mt-2 reveal" data-i="2" novalidate>
+      <div class="section-title"><span class="num-dot">1</span>ปัญหาเกี่ยวกับอะไร</div>
+      <div class="field mt-0" id="f-cat">
+        <div class="tiles" id="cats" role="radiogroup" aria-label="หมวดปัญหา"></div>
+        <div class="err-text"><i data-icon="alert"></i>กรุณาเลือกหมวดปัญหา</div>
+      </div>
+
+      <div class="section-title mt-3"><span class="num-dot">2</span>รายละเอียด</div>
+      <div class="field mt-0" id="f-title">
+        <label for="title">หัวข้อ</label>
+        <input class="input" id="title" name="title" maxlength="120" placeholder="เช่น แอร์ไม่เย็น" autocomplete="off" aria-describedby="title-err">
+        <div class="chips" id="suggest"></div>
+        <div class="err-text" id="title-err"><i data-icon="alert"></i>กรอกหัวข้ออย่างน้อย 3 ตัวอักษร</div>
+      </div>
+      <div class="field">
+        <label for="detail">อธิบายเพิ่มเติม <span class="hint">(ไม่บังคับ)</span></label>
+        <textarea class="textarea" id="detail" name="detail" maxlength="2000" placeholder="เป็นตั้งแต่เมื่อไร สะดวกให้ช่างเข้าช่วงไหน"></textarea>
+      </div>
+      <div class="field" id="f-photos">
+        <span class="field-label">รูปภาพ <span class="hint">(ไม่เกิน 3 รูป รวม 5 MB · JPG, PNG, WEBP)</span></span>
+        <label class="drop" id="drop" for="photos">
+          <i data-icon="imagePlus"></i>
+          <span><strong>แตะเพื่อเลือกรูป</strong><br><span class="small muted">หรือลากรูปมาวางที่นี่ · รูปช่วยให้ช่างเตรียมอุปกรณ์ได้ถูก</span></span>
+        </label>
+        <input class="sr-only" id="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+        <div class="thumbs" id="thumbs"></div>
+        <div class="err-text" id="photo-err"><i data-icon="alert"></i><span></span></div>
+      </div>
+
+      <div class="section-title mt-3"><span class="num-dot">3</span>ช่องทางติดต่อกลับ</div>
+      <div class="field mt-0" id="f-name">
+        <label for="name">ชื่อผู้แจ้ง</label>
+        <input class="input" id="name" name="reporter_name" maxlength="80" autocomplete="name">
+        <div class="err-text"><i data-icon="alert"></i>กรุณากรอกชื่อ</div>
+      </div>
+      <div class="field" id="f-phone">
+        <label for="phone">เบอร์โทร</label>
+        <input class="input" id="phone" name="reporter_phone" inputmode="tel" autocomplete="tel" placeholder="08x-xxx-xxxx">
+        <div class="err-text"><i data-icon="alert"></i>เบอร์โทรไม่ถูกต้อง (ตัวเลข 9–10 หลัก)</div>
+      </div>
+      <div class="field" id="f-email">
+        <label for="email">อีเมล <span class="hint">(ไม่บังคับ — รับแจ้งเตือนเมื่อสถานะเปลี่ยน)</span></label>
+        <input class="input" id="email" name="reporter_email" type="email" autocomplete="email">
+        <div class="err-text"><i data-icon="alert"></i>รูปแบบอีเมลไม่ถูกต้อง</div>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="remember"> จำชื่อและเบอร์ไว้ในเครื่องนี้ (สำหรับแจ้งครั้งหน้า)</label>
+      </div>
+      <div class="field" id="f-consent">
+        <label class="check"><input type="checkbox" id="consent" name="consent" value="true">
+          <span>ยินยอมให้เจ้าของหอเก็บชื่อ เบอร์โทร และอีเมล เพื่อติดต่อเรื่องแจ้งซ่อมนี้เท่านั้น
+          ข้อมูลส่วนตัวจะถูกลบหลังเรื่องเสร็จสิ้น 180 วัน</span></label>
+        <div class="err-text"><i data-icon="alert"></i>ต้องยินยอมก่อนส่งเรื่อง</div>
+      </div>
+      <div id="formErr"></div>
+      <button class="btn block mt-3" id="submit" type="submit"><i data-icon="send"></i>ส่งเรื่องแจ้งซ่อม</button>
+    </form>
+
+    <section id="done" class="card pad-lg mt-2 hidden center" aria-live="polite">
+      <div class="success-mark"><i data-icon="check"></i></div>
+      <h2 class="mt-0">ส่งเรื่องเรียบร้อยแล้ว</h2>
+      <p class="muted">เก็บลิงก์นี้ไว้ดูสถานะ — เราจำไว้ในเครื่องนี้ให้ด้วย เปิดลิงก์ห้องครั้งหน้าจะเห็นเรื่องนี้ด้านบน</p>
+      <div class="linkbox mt-2"><input class="input" id="trackUrl" readonly aria-label="ลิงก์ติดตามสถานะ">
+        <button type="button" id="copy" class="icon-btn" aria-label="คัดลอกลิงก์"><i data-icon="copy"></i></button></div>
+      <div class="row wrap mt-2" id="doneActions">
+        <a class="btn" id="goTrack"><i data-icon="eye"></i>ดูสถานะ</a>
+        <button type="button" class="btn ghost hidden" id="share"><i data-icon="share"></i>ส่งลิงก์เข้าแชทตัวเอง</button>
+        <button type="button" class="btn ghost" id="again"><i data-icon="plus"></i>แจ้งเรื่องอื่น</button>
+      </div>
+      <p class="xs muted mt-2">ใครมีลิงก์นี้จะเห็นสถานะเรื่องนี้ได้ อย่าแชร์ในกลุ่มสาธารณะ</p>
+    </section>
+  </div>
+</main>
+<script src="/assets/icons.js"></script>
+<script src="/assets/common.js"></script>
+<script src="/assets/tenant.js"></script>
+</body>
+</html>

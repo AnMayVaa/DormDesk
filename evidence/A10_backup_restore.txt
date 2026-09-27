@@ -1,0 +1,7 @@
+backup: backups/dormdesk_20260927_0557.dump (52K)
+NOTICE:  database "dormdesk_restore_test" does not exist, skipping
+  dorms: live=2 restored=2
+  rooms: live=50 restored=50
+  requests: live=71 restored=71
+  request_events: live=191 restored=191
+  request_photos: live=0 restored=0

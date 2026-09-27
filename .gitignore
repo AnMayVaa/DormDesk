@@ -1,0 +1,30 @@
+# ---- secrets: NEVER commit (share with the team privately, e.g. LINE Keep / password manager)
+cloud_pass.txt
+secrets.env
+.env
+*.pw
+demo_accounts.txt
+db/seed.generated.sql
+infra/tls/*.key
+infra/tls/*.crt
+infra/tls/*.csr
+infra/tls/*.srl
+infra/tls/*.ext
+!infra/tls/make-cert.sh
+evidence/private/
+backups/
+*.dump
+
+# ---- course material from the teacher (not ours to publish)
+Cloud-Computing-subjec-sources/
+
+# ---- build / OS noise
+__pycache__/
+venv/
+.venv/
+*.tgz
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/app.css">
+<title>ติดตามสถานะ — DormDesk</title>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header class="topbar"><div class="container narrow">
+  <span class="brand"><span class="brand-mark"><i data-icon="home"></i></span><span class="brand-text">Dorm<span>Desk</span></span></span>
+  <div class="spacer"></div><button class="icon-btn" type="button" data-theme-toggle></button>
+</div></header>
+<main id="main" class="container narrow">
+  <div id="loading" class="card pad-lg mt-3" aria-busy="true"><div class="skel line"></div><div class="skel title"></div><div class="skel block"></div><div class="skel line"></div></div>
+  <div id="err" class="hidden mt-3"></div>
+
+  <section id="view" class="card pad-lg mt-3 hidden" aria-live="polite">
+    <span class="room-pill" id="where"></span>
+    <h1 id="title" class="mt-1"></h1>
+    <div class="row wrap" id="badges"></div>
+    <div class="stepper" id="stepper" aria-label="ความคืบหน้า"></div>
+    <p id="detail" class="mt-2"></p>
+    <div class="photos" id="photos"></div>
+  </section>
+
+  <section id="hist" class="card pad-lg mt-2 hidden">
+    <div class="row"><h2 class="mt-0">ความคืบหน้า</h2><div class="spacer"></div>
+      <button class="btn ghost sm" id="refresh" type="button"><i data-icon="refresh"></i>รีเฟรช</button></div>
+    <p class="xs muted" id="updated"></p>
+    <ul class="timeline mt-2" id="timeline"></ul>
+  </section>
+  <p class="xs muted mt-2">หน้านี้อัปเดตเองทุก 30 วินาที · มีปัญหาเร่งด่วนเกี่ยวกับความปลอดภัย โปรดโทรหาเจ้าของหอโดยตรง</p>
+</main>
+<script src="/assets/icons.js"></script>
+<script src="/assets/common.js"></script>
+<script src="/assets/track.js"></script>
+</body>
+</html>

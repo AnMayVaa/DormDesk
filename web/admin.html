@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
+<script src="/assets/theme.js"></script>
+<link rel="stylesheet" href="/assets/app.css">
+<title>เจ้าของหอ — DormDesk</title>
+</head>
+<body>
+<a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
+<header class="topbar"><div class="container">
+  <a class="brand" href="/admin"><span class="brand-mark"><i data-icon="home"></i></span><span class="brand-text hide-sm">Dorm<span>Desk</span></span></a>
+  <label class="sr-only" for="dormSel">เลือกหอ</label>
+  <select class="select hidden" id="dormSel"></select>
+  <div class="spacer"></div>
+  <button class="icon-btn" type="button" data-theme-toggle></button>
+  <span id="who" class="row small muted hide-sm hidden"><i data-icon="user"></i><span id="whoName"></span></span>
+  <button class="icon-btn hidden" id="logout" type="button" aria-label="ออกจากระบบ" title="ออกจากระบบ"><i data-icon="logout"></i></button>
+</div></header>
+
+<main id="main">
+  <div id="boot" class="container app-shell"><div class="kpis"><div class="skel kpi"></div><div class="skel kpi"></div><div class="skel kpi"></div><div class="skel kpi"></div></div></div>
+
+  <div id="loginView" class="login-wrap hidden">
+    <div class="card login-card reveal">
+      <div class="login-side">
+        <div class="brand-mark"><i data-icon="building"></i></div>
+        <h2 class="mt-2">ดูแลงานซ่อมทุกหอในที่เดียว</h2>
+        <ul class="ticks">
+          <li><i data-icon="check"></i>เห็นเรื่องใหม่ทันที เรียงตามความเร่งด่วน</li>
+          <li><i data-icon="check"></i>อัปเดตสถานะ ผู้เช่าเห็นเองจากลิงก์ติดตาม</li>
+          <li><i data-icon="check"></i>รู้ว่าอะไรเสียบ่อย ซ่อมเร็วแค่ไหน</li>
+        </ul>
+      </div>
+      <form class="login-form" id="loginForm" novalidate>
+        <h1>เข้าสู่ระบบ</h1>
+        <p class="muted small">สำหรับเจ้าของหอและผู้จัดการอาคาร</p>
+        <div class="field">
+          <label for="email">อีเมล</label>
+          <div class="input-icon"><i data-icon="mail"></i><input class="input" id="email" type="email" autocomplete="username" required></div>
+        </div>
+        <div class="field">
+          <label for="password">รหัสผ่าน</label>
+          <div class="row"><div class="input-icon spacer"><i data-icon="lock"></i><input class="input" id="password" type="password" autocomplete="current-password" required></div>
+            <button class="icon-btn" type="button" id="showPw" aria-label="แสดงรหัสผ่าน" aria-pressed="false"><i data-icon="eye"></i></button></div>
+        </div>
+        <div id="loginErr"></div>
+        <button class="btn block mt-3" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
+        <p class="xs muted mt-2 row"><i data-icon="shield"></i>ล็อกอินผิด 5 ครั้งใน 10 นาที ระบบจะพักบัญชีชั่วคราว</p>
+      </form>
+    </div>
+  </div>
+
+  <div id="appView" class="container app-shell hidden">
+    <div class="row wrap">
+      <div><div class="label-caps" id="dormLabel">หอพัก</div><h1 class="mt-0" id="dormTitle"></h1></div>
+      <div class="spacer"></div>
+      <span class="xs muted" id="updated"></span>
+      <button class="btn ghost sm" id="reload" type="button"><i data-icon="refresh"></i>รีเฟรช</button>
+    </div>
+    <div class="tabs mt-2" role="tablist" id="tabs">
+      <button class="tab" role="tab" data-tab="dash" aria-selected="true"><i data-icon="chart"></i>ภาพรวม</button>
+      <button class="tab" role="tab" data-tab="reqs" aria-selected="false"><i data-icon="list"></i>คำขอแจ้งซ่อม <span class="count hidden" id="openCount"></span></button>
+      <button class="tab" role="tab" data-tab="rooms" aria-selected="false"><i data-icon="door"></i>ห้อง & ลิงก์</button>
+      <button class="tab" role="tab" data-tab="cats" aria-selected="false"><i data-icon="tag"></i>หมวดปัญหา</button>
+    </div>
+    <div id="panel" class="mt-2" role="tabpanel"></div>
+  </div>
+</main>
+<script src="/assets/icons.js"></script>
+<script src="/assets/common.js"></script>
+<script src="/assets/admin.js"></script>
+</body>
+</html>
