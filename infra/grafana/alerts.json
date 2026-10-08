@@ -1,0 +1,415 @@
+[
+ {
+  "uid": "dd-api-silent",
+  "title": "API server silent",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "2m",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "critical",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "An API server has not written a heartbeat for > 150 s (crashed, or cannot reach the database)."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT host, age_s::float AS value FROM v_ops_heartbeats",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "gt",
+        "params": [
+         150
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-no-standby",
+  "title": "No standby streaming",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "2m",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "The primary has no streaming standby: a database failure now means restoring from backup."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT standby_count::float AS value FROM ops_replication()",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "lt",
+        "params": [
+         1
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-standby-lag",
+  "title": "Standby lagging",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "2m",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "db standby replayed nothing for > 3 min (heartbeats write every minute, so it is stuck)."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg-standby",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT coalesce(last_replay_age_s, 9999)::float AS value FROM ops_replication() WHERE role = 'standby'",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "gt",
+        "params": [
+         180
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-login-spike",
+  "title": "Failed-login spike",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "0s",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "More than 10 failed owner logins in 10 minutes — password guessing?"
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT count(*)::float AS value FROM v_security_events WHERE type = 'login_failed' AND occurred_at > now() - interval '10 minutes'",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "gt",
+        "params": [
+         10
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-job-stalled",
+  "title": "Background job stalled",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "2m",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "No API has completed the background job for 5 minutes (bills, no-shows, e-mails stop)."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT coalesce(extract(epoch FROM now() - max(last_ok_at)), 99999)::float AS value FROM v_ops_jobs WHERE name = 'settle_and_bill'",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "gt",
+        "params": [
+         300
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-backup-stale",
+  "title": "Backup older than 26 h",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "0s",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "tools/backup.sh has not completed (with restore test) for more than a day."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT coalesce(extract(epoch FROM now() - max(updated_at)) / 3600, 999)::float AS value FROM v_ops_meta WHERE key = 'backup_last_ok'",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "gt",
+        "params": [
+         26
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "uid": "dd-cert-expiring",
+  "title": "TLS certificate expires in < 14 days",
+  "ruleGroup": "dormdesk",
+  "folderUID": "dormdesk",
+  "condition": "C",
+  "for": "0s",
+  "noDataState": "OK",
+  "execErrState": "Error",
+  "labels": {
+   "severity": "warning",
+   "service": "dormdesk"
+  },
+  "annotations": {
+   "summary": "Run infra/tls/renew-letsencrypt.sh then infra/deploy.sh web."
+  },
+  "data": [
+   {
+    "refId": "A",
+    "relativeTimeRange": {
+     "from": 600,
+     "to": 0
+    },
+    "datasourceUid": "dormdesk-pg",
+    "model": {
+     "refId": "A",
+     "format": "table",
+     "rawQuery": true,
+     "editorMode": "code",
+     "rawSql": "SELECT (value::date - current_date)::float AS value FROM v_ops_meta WHERE key = 'tls_cert_not_after'",
+     "intervalMs": 60000,
+     "maxDataPoints": 43200
+    }
+   },
+   {
+    "refId": "C",
+    "relativeTimeRange": {
+     "from": 0,
+     "to": 0
+    },
+    "datasourceUid": "__expr__",
+    "model": {
+     "refId": "C",
+     "type": "threshold",
+     "expression": "A",
+     "conditions": [
+      {
+       "evaluator": {
+        "type": "lt",
+        "params": [
+         14
+        ]
+       }
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

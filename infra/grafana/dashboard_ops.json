@@ -1,0 +1,633 @@
+{
+ "dashboard": {
+  "uid": "dormdesk-ops",
+  "title": "DormDesk — Platform & Business",
+  "timezone": "Asia/Bangkok",
+  "time": {
+   "from": "now-7d",
+   "to": "now"
+  },
+  "refresh": "1m",
+  "schemaVersion": 39,
+  "tags": [
+   "dormdesk"
+  ],
+  "panels": [
+   {
+    "type": "row",
+    "title": "Platform — is everything up?",
+    "gridPos": {
+     "x": 0,
+     "y": 0,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "type": "stat",
+    "title": "API servers alive",
+    "gridPos": {
+     "x": 0,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT count(*) FILTER (WHERE age_s < 150) AS alive, count(*) AS total FROM v_ops_heartbeats"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "red",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 1
+        },
+        {
+         "color": "green",
+         "value": 2
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "description": "Each API process writes a heartbeat every minute (jobs.py). Silent > 150 s = down."
+   },
+   {
+    "type": "stat",
+    "title": "Standbys streaming (primary)",
+    "gridPos": {
+     "x": 4,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT standby_count FROM ops_replication()"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "red",
+         "value": null
+        },
+        {
+         "color": "green",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "overrides": []
+    },
+    "description": "pg_stat_replication on the current primary."
+   },
+   {
+    "type": "stat",
+    "title": "Standby replay age",
+    "gridPos": {
+     "x": 8,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg-standby"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT last_replay_age_s FROM ops_replication() WHERE role = 'standby'"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 90
+        },
+        {
+         "color": "red",
+         "value": 180
+        }
+       ]
+      },
+      "unit": "s"
+     },
+     "overrides": []
+    },
+    "description": "Seconds since the standby replayed the last transaction. Heartbeats write every 60 s, so ~0–60 s is normal; > 180 s means replication is stuck."
+   },
+   {
+    "type": "stat",
+    "title": "Last backup",
+    "gridPos": {
+     "x": 12,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT round(extract(epoch FROM now() - updated_at) / 3600, 1) AS hours FROM v_ops_meta WHERE key = 'backup_last_ok'"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 26
+        },
+        {
+         "color": "red",
+         "value": 50
+        }
+       ]
+      },
+      "unit": "h"
+     },
+     "overrides": []
+    },
+    "description": "Written by tools/backup.sh after the laptop copy + restore test succeeded."
+   },
+   {
+    "type": "stat",
+    "title": "TLS certificate",
+    "gridPos": {
+     "x": 16,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT (value::date - current_date) AS days_left FROM v_ops_meta WHERE key = 'tls_cert_not_after'"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "red",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 14
+        },
+        {
+         "color": "green",
+         "value": 30
+        }
+       ]
+      },
+      "unit": "d"
+     },
+     "overrides": []
+    },
+    "description": "Let's Encrypt certificate on web-01 (deploy.sh web records its expiry)."
+   },
+   {
+    "type": "stat",
+    "title": "Background job",
+    "gridPos": {
+     "x": 20,
+     "y": 1,
+     "w": 4,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT round(extract(epoch FROM now() - last_ok_at)) AS seconds_ago FROM v_ops_jobs WHERE name = 'settle_and_bill'"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 180
+        },
+        {
+         "color": "red",
+         "value": 300
+        }
+       ]
+      },
+      "unit": "s"
+     },
+     "overrides": []
+    },
+    "description": "Settles bookings/parking and issues bills once a minute; one API holds the advisory lock."
+   },
+   {
+    "type": "table",
+    "title": "API heartbeats",
+    "gridPos": {
+     "x": 0,
+     "y": 6,
+     "w": 12,
+     "h": 6
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT host, db_host AS \"database\", version, age_s AS \"seconds ago\" FROM v_ops_heartbeats ORDER BY host"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   },
+   {
+    "type": "table",
+    "title": "Jobs",
+    "gridPos": {
+     "x": 12,
+     "y": 6,
+     "w": 12,
+     "h": 6
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT name, last_run_at, last_ok_at, round(extract(epoch FROM now() - last_ok_at)) AS \"ok s ago\" FROM v_ops_jobs ORDER BY name"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   },
+   {
+    "type": "row",
+    "title": "Business — aggregates only (no personal data)",
+    "gridPos": {
+     "x": 0,
+     "y": 12,
+     "w": 24,
+     "h": 1
+    },
+    "collapsed": false,
+    "panels": []
+   },
+   {
+    "type": "stat",
+    "title": "Bills unpaid this month",
+    "gridPos": {
+     "x": 0,
+     "y": 13,
+     "w": 6,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT count(*) FILTER (WHERE status IN ('unpaid','returned','overdue','slip_sent')) AS open, count(*) FILTER (WHERE status = 'overdue') AS overdue FROM v_bill_stats WHERE period = to_char(now() AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM')"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "color": {
+       "mode": "thresholds"
+      },
+      "thresholds": {
+       "mode": "absolute",
+       "steps": [
+        {
+         "color": "green",
+         "value": null
+        },
+        {
+         "color": "orange",
+         "value": 1
+        }
+       ]
+      }
+     },
+     "overrides": []
+    }
+   },
+   {
+    "type": "stat",
+    "title": "Collected this month (THB)",
+    "gridPos": {
+     "x": 6,
+     "y": 13,
+     "w": 6,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT coalesce(sum(total) FILTER (WHERE status = 'paid'), 0) / 100.0 AS baht FROM v_bill_stats WHERE period = to_char(now() AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM')"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {
+      "unit": "none"
+     },
+     "overrides": []
+    }
+   },
+   {
+    "type": "stat",
+    "title": "Gym / pool now",
+    "gridPos": {
+     "x": 12,
+     "y": 13,
+     "w": 6,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT count(*) AS inside FROM v_checkin_stats WHERE started_at <= now() AND ended_at > now()"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   },
+   {
+    "type": "stat",
+    "title": "Parking permits",
+    "gridPos": {
+     "x": 18,
+     "y": 13,
+     "w": 6,
+     "h": 5
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT count(*) FILTER (WHERE status = 'active') AS active, count(*) FILTER (WHERE status = 'pending') AS pending FROM v_parking_stats"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   },
+   {
+    "type": "barchart",
+    "title": "Bills by status per dorm (this month)",
+    "gridPos": {
+     "x": 0,
+     "y": 18,
+     "w": 12,
+     "h": 8
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT dorm, count(*) FILTER (WHERE status = 'paid') AS paid, count(*) FILTER (WHERE status IN ('unpaid','returned','slip_sent')) AS open, count(*) FILTER (WHERE status = 'overdue') AS overdue FROM v_bill_stats WHERE period = to_char(now() AT TIME ZONE 'Asia/Bangkok', 'YYYY-MM') GROUP BY dorm ORDER BY dorm"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    },
+    "options": {
+     "stacking": "normal",
+     "xField": "dorm"
+    }
+   },
+   {
+    "type": "timeseries",
+    "title": "Check-ins per hour (7 days)",
+    "gridPos": {
+     "x": 12,
+     "y": 18,
+     "w": 12,
+     "h": 8
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "time_series",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT date_trunc('hour', started_at) AS time, kind, count(*) AS n FROM v_checkin_stats WHERE $__timeFilter(started_at) GROUP BY 1, 2 ORDER BY 1"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   },
+   {
+    "type": "barchart",
+    "title": "Bookings by status (30 days)",
+    "gridPos": {
+     "x": 0,
+     "y": 26,
+     "w": 12,
+     "h": 7
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "table",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT status, count(*) AS n FROM v_booking_stats WHERE starts_at > now() - interval '30 days' GROUP BY status ORDER BY n DESC"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    },
+    "options": {
+     "xField": "status"
+    }
+   },
+   {
+    "type": "timeseries",
+    "title": "Security events (per 15 min)",
+    "gridPos": {
+     "x": 12,
+     "y": 26,
+     "w": 12,
+     "h": 7
+    },
+    "datasource": {
+     "type": "grafana-postgresql-datasource",
+     "uid": "dormdesk-pg"
+    },
+    "targets": [
+     {
+      "refId": "A",
+      "format": "time_series",
+      "rawQuery": true,
+      "editorMode": "code",
+      "rawSql": "SELECT $__timeGroupAlias(occurred_at, '15m'), type AS metric, count(*) AS value FROM v_security_events WHERE $__timeFilter(occurred_at) GROUP BY 1, 2 ORDER BY 1"
+     }
+    ],
+    "fieldConfig": {
+     "defaults": {},
+     "overrides": []
+    }
+   }
+  ]
+ },
+ "overwrite": true
+}
