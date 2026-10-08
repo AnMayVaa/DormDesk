@@ -1,0 +1,42 @@
+# api-N auto-wiring: infra/scale_api.sh add 10.0.2.142  (2026-10-08T08:57:23Z)
+== create api-03 (10.0.2.142) in the lab console
+create api-03 -> HTTP 302
+== deploy the API on api-03
+debconf: delaying package configuration, since apt-utils is not installed
+{"status":"ok","db":"ok","db_host":"10.0.2.150","storage":"ok","served_by":"api-03","version":"2.0.0"}
+boot hook installed (api-03, role=api)
+debconf: delaying package configuration, since apt-utils is not installed
+firewall applied: api
+API_HOSTS=10.0.2.140 10.0.2.141 10.0.2.142
+== re-wire: bastion permitopen, web-01 tunnel + Nginx upstream
+ddtunnel ready: permitopen="10.0.2.140:8000",permitopen="10.0.2.141:8000",permitopen="10.0.2.142:8000"
+TUNNEL_STARTED (3 API forwards)
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+2026/10/08 09:00:04 [notice] 2091#2091: signal process started
+WEB_OK
+boot hook installed (web-01, role=web)
+TLS certificate valid until 2026-12-26 (recorded)
+## served_by over 12 requests through the public URL:
+      5 "served_by":"api-01"
+      4 "served_by":"api-02"
+      3 "served_by":"api-03"
+8001 10.0.2.140
+8002 10.0.2.141
+8003 10.0.2.142
+    server 127.0.0.1:8001 max_fails=2 fail_timeout=10s;   # 10.0.2.140
+    server 127.0.0.1:8002 max_fails=2 fail_timeout=10s;   # 10.0.2.141
+    server 127.0.0.1:8003 max_fails=2 fail_timeout=10s;   # 10.0.2.142
+16/16 passed
+
+## scale back in: infra/scale_api.sh remove 10.0.2.142
+API_HOSTS=10.0.2.140 10.0.2.141
+TUNNEL_STARTED (2 API forwards)
+WEB_OK
+boot hook installed (web-01, role=web)
+TLS certificate valid until 2026-12-26 (recorded)
+ddtunnel ready: permitopen="10.0.2.140:8000",permitopen="10.0.2.141:8000"
+delete api-03 (1bf4dadaac6f) -> HTTP 302
+REMOVED api-03
+      5 "served_by":"api-01"
+      3 "served_by":"api-02"

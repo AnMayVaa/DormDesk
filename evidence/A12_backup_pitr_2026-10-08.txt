@@ -1,0 +1,30 @@
+# Backups (tools/backup.sh) — 2026-10-08
+## daily
+dump: backups/daily/dormdesk_20261008_083424.dump.enc (176K) from 10.0.2.151
+wal: +1 segments (19 total)
+objects: 3
+objects: backups/objects/objects_20261008_083424.tar.enc (12K)
+manifest 3 objects, tar 3 blobs, mismatches 0
+NOTICE:  database "dormdesk_restore_test" does not exist, skipping
+  dorms: live=2 restored=2
+  rooms: live=50 restored=50
+  tenancies: live=52 restored=52
+  requests: live=64 restored=64
+  bills: live=133 restored=133
+  fines: live=2 restored=2
+  bookings: live=16 restored=16
+  checkins: live=364 restored=364
+  parking_permits: live=21 restored=21
+  objects: live=3 restored=3
+BACKUP_OK
+
+## PITR drill (tools/backup.sh pitr)
+1) primary: write 'good-20261008_083506', then a 'mistake' 3 s later
+   target time = 2026-10-08 08:35:14.203379+00 (between the good write and the mistake); waiting for 00000001000000000000001F in the archive
+wal: +2 segments (21 total)
+2) restore base_20261008_083457.tar.gz.enc + WAL on 10.0.2.151 into a temporary server (port 5499, no network)
+2026-10-08 08:36:00.373 UTC [420] LOG:  connection authorized: user=postgres database=dormdesk application_name=psql
+2026-10-08 08:36:02.224 UTC [402] LOG:  received immediate shutdown request
+2026-10-08 08:36:02.236 UTC [402] LOG:  database system is shut down
+3) restored value = 'good-20261008_083506' (live value is 'MISTAKE')
+PITR_OK

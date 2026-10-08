@@ -1,0 +1,24 @@
+# k6 load test — 80 virtual users, 4 tenant pages per loop, 0.3 s think time, via https://dormdesk-g02.duckdns.org:10201
+# command: tools/loadtest/run.sh 80 30s 0.3   (load generator = team laptop over the internet)
+
+setup       req/s  median ms   p95 ms  errors %
+1_api        50.6       1320     1683      0.00
+2_apis       66.9        732     1980      0.00
+
+# CPU during a second run (1 API phase + 2 API phase, cgroup cpu.stat deltas):
+web-01   quota 0.25 vCPU  used 0.07 vCPU avg (28% of quota)  throttled 0.6 s    -> not the bottleneck
+api-01   quota 0.50 vCPU  used 0.36 vCPU avg (72% of quota)  throttled 34.3 s   -> saturated while it was alone
+api-02   quota 0.50 vCPU  used 0.16 vCPU avg (33% of quota)  throttled 0.2 s
+db-01    quota 0.50 vCPU  used 0.32 vCPU avg (64% of quota)  throttled 13.6 s   -> next bottleneck with 2 APIs
+
+# Reading: a 2nd API server gives +32 % throughput and halves the median response time (1.32 s -> 0.73 s).
+# With 2 APIs the database (0.5 vCPU) starts to throttle, so a 3rd API alone would help less; the next step is
+# more DB CPU or sending read-only pages to the hot standby db-02 (already running).
+
+# Same test with api-03 added by infra/scale_api.sh (evidence/loadtest_2026-10-08_0900):
+setup       req/s  median ms   p95 ms  errors %
+1_api        48.7       1281     1921      0.00
+3_apis       59.6        646     2925      0.00
+# -> a 3rd API no longer raises throughput (59.6 vs 66.9 req/s with 2) and the p95 gets worse: the 0.5-vCPU
+#    database is now the limit, exactly as the CPU numbers above predicted. Scaling the API tier is easy
+#    (one command); the next real gain needs the data tier (more DB CPU or read traffic on db-02).

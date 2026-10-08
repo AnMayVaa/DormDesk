@@ -1,0 +1,145 @@
+{
+    "metrics": {
+        "http_req_receiving": {
+            "p(95)": 2.6104592999999996,
+            "max": 39.399926,
+            "avg": 0.44508370427901606,
+            "med": 0.108101,
+            "p(90)": 0.5976362000000004
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 3412,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_blocked": {
+            "p(90)": 0.000821,
+            "p(95)": 0.0009614499999999999,
+            "max": 495.399955,
+            "avg": 4.225894640093803,
+            "med": 0.000541
+        },
+        "data_sent": {
+            "count": 268902,
+            "rate": 5332.204556684476
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 1747.9765181,
+            "max": 2358.466976,
+            "avg": 828.7199206699885,
+            "med": 696.2806925,
+            "p(90)": 1561.9850873
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "max": 140.991877,
+            "avg": 1.919261837631888
+        },
+        "http_req_sending": {
+            "med": 0.09445049999999999,
+            "p(90)": 0.173161,
+            "p(95)": 0.20410799999999998,
+            "max": 1.215811,
+            "avg": 0.10820062162954257
+        },
+        "vus_max": {
+            "min": 80,
+            "max": 80,
+            "value": 80
+        },
+        "http_req_duration": {
+            "med": 696.2806925,
+            "p(90)": 1561.9850873,
+            "p(95)": 1747.9765181,
+            "max": 2358.466976,
+            "avg": 828.7199206699885,
+            "thresholds": {
+                "p(95)<1500": true
+            }
+        },
+        "data_received": {
+            "count": 4739109,
+            "rate": 93974.37953017981
+        },
+        "http_reqs": {
+            "count": 3412,
+            "rate": 67.65841067529225
+        },
+        "http_req_tls_handshaking": {
+            "avg": 2.1673607936694026,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "max": 220.410639
+        },
+        "checks": {
+            "passes": 3412,
+            "fails": 0,
+            "value": 1
+        },
+        "vus": {
+            "value": 8,
+            "min": 5,
+            "max": 80
+        },
+        "iteration_duration": {
+            "avg": 3635.052744517001,
+            "med": 3845.453854,
+            "p(90)": 5366.9144102,
+            "p(95)": 5822.9443314,
+            "max": 7090.142054
+        },
+        "iterations": {
+            "count": 853,
+            "rate": 16.91460266882306
+        },
+        "http_req_waiting": {
+            "p(90)": 1561.6371262,
+            "p(95)": 1747.7479902999999,
+            "max": 2358.346452,
+            "avg": 828.1666363440802,
+            "med": 695.7422320000001
+        }
+    },
+    "root_group": {
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "home 200": {
+                    "fails": 0,
+                    "name": "home 200",
+                    "path": "::home 200",
+                    "id": "d5a546618676c7c5737c4af152946908",
+                    "passes": 853
+                },
+                "bills 200": {
+                    "fails": 0,
+                    "name": "bills 200",
+                    "path": "::bills 200",
+                    "id": "49907da422a572c72fe189efdeaeddc2",
+                    "passes": 853
+                },
+                "facilities 200": {
+                    "name": "facilities 200",
+                    "path": "::facilities 200",
+                    "id": "8301d9276bf8dbcd06c145da161d08b3",
+                    "passes": 853,
+                    "fails": 0
+                },
+                "parking 200": {
+                    "fails": 0,
+                    "name": "parking 200",
+                    "path": "::parking 200",
+                    "id": "744fe00b14c852a8cebaa124c77cd8e5",
+                    "passes": 853
+                }
+            },
+        "name": ""
+    }
+}

@@ -10,7 +10,7 @@
 | ชื่อระบบ | **DormDesk** |
 | ทีม | group02 (3 คน) |
 | Cloud | Cloud Lab v1.0 ของอาจารย์ (45.77.40.35) |
-| สถานะปัจจุบัน | 🟢 Sprint 1 ครบ + ส่วนขยาย — **https://dormdesk-g02.duckdns.org:10201** (HTTPS ที่เชื่อถือได้) · 6 เครื่อง (เพิ่ม ai-01) · AI Insight · อีเมลแจ้งเตือน · TH/EN · smoke 16/16 · verify 26/26 · เหลือ: สัมภาษณ์เจ้าของหอ, ลบข้อมูล 180 วัน, สไลด์ + ซ้อม |
+| สถานะปัจจุบัน | 🟢 **v2 (8 ต.ค. 2026)** — **https://dormdesk-g02.duckdns.org:10201** · 8 เครื่อง (เพิ่ม db-02 standby, store-01 object store) · ฟีเจอร์ Spec v2 ครบ (บิล/PromptPay/สลิป/ใบเสร็จ, ค่าปรับ, ฟิตเนส/สระ QR, จอง, ที่จอด, เปลี่ยนผู้เช่า) · failover DB + PITR + alerts + boot hook + api-N + CI + load test · verify 48/48 · smoke 16/16 · flow 77/77 · เหลือ: สัมภาษณ์เจ้าของหอ, สไลด์ + ซ้อม |
 
 ---
 
@@ -121,9 +121,12 @@
 |---|---|---|---|---|---|---|
 | web-01 | public | Nginx 1.31 | 10.0.2.10 | 0.25 / 128 MB | 10201 → 443 | Must |
 | api-01 | private | Ubuntu 24.04 + FastAPI | 10.0.2.140 | 0.5 / 512 MB | – | Must |
-| db-01 | private | PostgreSQL 16 | 10.0.2.150 | 0.5 / 512 MB | – | Must |
+| db-01 | private | PostgreSQL 16 (primary) | 10.0.2.150 | 0.5 / 512 MB | – | Must |
 | api-02 | private | Ubuntu 24.04 + FastAPI | 10.0.2.141 | 0.5 / 256 MB | – | Should |
-| mon-01 | private | Grafana | 10.0.2.165 | 0.25 / 256 MB | – | Should |
+| db-02 | private | PostgreSQL 16 (hot standby) | 10.0.2.151 | 0.5 / 256 MB | – | v2 |
+| store-01 | private | Alpine + SeaweedFS | 10.0.2.155 | 0.25 / 256 MB | – | v2 |
+| ai-01 | private | Ubuntu + llama.cpp | 10.0.2.160 | 1 / 1 GB | – | Could ✅ |
+| mon-01 | private | Grafana 13 | 10.0.2.165 | 0.5 / 512 MB | – | Should |
 | bastion | private | (แล็บให้) | 10.0.2.131 | – | 22002 → 22 (แล็บ) | – |
 
 ### API Endpoints
@@ -139,10 +142,13 @@
 | Reverse proxy / LB / TLS | Nginx | ทางเข้าเดียว, HTTPS, rate limit, กระจายไป api-01/02 |
 | Backend | Python + FastAPI | ตรวจข้อมูลขาเข้าอัตโนมัติ (Pydantic) |
 | Database | PostgreSQL 16 | ข้อมูลมีความสัมพันธ์ + Row-Level Security |
-| เก็บรูป | ฐานข้อมูล (`bytea`) | ไม่มี object storage + ให้ API ไม่มีสถานะ → ทำ HA ได้ |
-| HTTPS | mkcert | ไม่มีโดเมน · ติดตั้ง CA บนเครื่อง demo |
-| Monitoring | Grafana (mon-01) | อ่าน `security_events` ด้วยบัญชี read-only |
-| Backup | pg_dump / pg_restore | เก็บนอกแล็บ |
+| เก็บรูป/สลิป/หลักฐาน | SeaweedFS (S3) บน store-01 · เข้ารหัส AES-256-GCM โดย API | MinIO community ถูก archive · DB ไม่บวม · API ยังไม่มีสถานะ |
+| HTTPS | Let's Encrypt (DuckDNS DNS-01) | เบราว์เซอร์เชื่อถือ ไม่ต้องเปิดพอร์ต 80 |
+| ฐานข้อมูลสำรอง | PostgreSQL streaming replication (async) + manual failover | RPO ~วินาที · ไม่ต้องมีเครื่องที่ 3 |
+| Monitoring | Grafana 13 (mon-01) · 2 data sources · 7 alerts → อีเมล | อ่านเฉพาะ view สรุปด้วยบัญชี read-only |
+| Backup | pg_dump + pg_basebackup + WAL archive · openssl AES-256 | เก็บนอกแล็บ · ทดสอบกู้ทุกครั้ง · PITR |
+| CI | GitHub Actions | lint + nginx -t + e2e (PostgreSQL + SeaweedFS + API) |
+| Load test | k6 | วัดผลของการเพิ่ม API |
 | AI Insight (Could) | API สรุปตัวเลข → LLM เรียบเรียง | ดูข้อ 7.1 |
 
 ## 7.1 AI Insight Assistant — ออกแบบไว้แล้ว
@@ -169,17 +175,20 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | ลิงก์ห้อง/ลิงก์ติดตามหลุดหรือถูกเดา | ค่าสุ่ม 128 bit, เปลี่ยนรหัสห้องได้ทันที, `Referrer-Policy: no-referrer`, ไม่บันทึกใน log |
 | ข้อมูลส่วนบุคคล (PDPA) | เก็บเท่าที่จำเป็น, ขอความยินยอม, ลบหลัง 180 วัน, Grafana/AI เห็นแค่ตัวเลขรวม |
 | เครื่องใดเครื่องหนึ่งถูกยึด | แยกโซน + firewall ขาเข้า/ขาออก + pg_hba + บัญชี DB สิทธิ์ต่ำ |
-| web-01 / db-01 ล่ม (single point of failure) | ยอมรับใน MVP · backup + ขั้นตอนสร้างใหม่ (Architecture 13) |
+| db-01 ล่ม | v2: db-02 hot standby + `failover.sh` (~35 วินาที) + กัน split-brain 3 ชั้น · PITR จาก backup บน laptop |
+| web-01 ล่ม (single point of failure) | ยอมรับ (แล็บ map พอร์ตได้เครื่องเดียว) · สร้างใหม่ด้วย `deploy.sh web` |
+| สลิป/รูปหลุด | เข้ารหัสต่อไฟล์ + metadata ใต้ RLS + S3 แยกบัญชี + firewall · Grafana ไม่เห็นสลิป |
 | AI ตอบตัวเลขผิดหรือดึงข้อมูลข้ามหอ | Backend คำนวณเอง, query ล่วงหน้า, RLS |
 
 **ความเสี่ยงของทีม (ไม่ใส่ใน One-Pager)**
 
 | ความเสี่ยง | แนวทางรับมือ | สถานะ |
 |---|---|---|
-| Firewall ของแล็บบังคับใช้ไม่ได้ (กระทบข้อกำหนดข้อ 4) | แจ้งอาจารย์พร้อมหลักฐาน · pg_hba เป็นชั้นสำรอง · บอกตรงๆ ใน pitch ถ้ายังไม่ได้ | 🔴 เกิดแล้ว |
+| Firewall ของแล็บบังคับใช้ไม่ได้ (กระทบข้อกำหนดข้อ 4) | ตั้ง iptables เองทุกเครื่อง + boot hook ตั้งใหม่หลัง restart · verify 48/48 | 🟢 แก้แล้ว |
+| ฐานข้อมูลเป็นคอขวดเมื่อโหลดสูง (load test) | ขั้นต่อไป: ส่งหน้าอ่านอย่างเดียวไป db-02 / เพิ่ม CPU ของ DB | 🟡 รู้แล้ว |
 | งานเยอะเกิน 3 สัปดาห์ / ยังไม่มีโค้ด | ล็อก Must ก่อน · api-02, mon-01, อีเมล ทำหลัง Must ผ่าน | 🟠 |
 | Rate limit ต่อ IP ใช้ไม่ได้ถ้า NAT ซ่อน IP จริง | ทดสอบจาก 2 เครือข่าย · พึ่ง limit ต่อห้องเป็นหลัก | 🟡 ต้องตรวจ |
-| คำเตือนใบรับรองตอน demo | ติดตั้ง mkcert CA บนเครื่อง demo · อธิบายล่วงหน้า | 🟡 |
+| คำเตือนใบรับรองตอน demo | ใช้ Let's Encrypt แล้ว · Grafana เตือนก่อนหมดอายุ 14 วัน | 🟢 |
 | Demo ล่มวันจริง / แล็บ reset | อัดวิดีโอสำรอง · โค้ด+config ใน git · backup นอกแล็บ | 🟡 |
 | RAM ไม่พอ (web-01 128 MB, api-02 256 MB) | เฝ้าดูด้วย `free -m` · ใช้ uvicorn worker เดียว · เพิ่ม RAM ถ้าจำเป็น | 🟡 |
 
@@ -226,20 +235,43 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 - [x] N1–N8 · A1–A10 ผ่าน เก็บหลักฐานใน `evidence/` (A5/A6/A7 ทดสอบในเครื่อง dev)
 - [x] เขียน `tools/verify.sh` รวมการทดสอบ network + DB (20 ข้อ)
 
+### ✅ v2 — Feature Spec v2 + ชั้นข้อมูล (8 ต.ค. 2026)
+**ฟีเจอร์ (P0–P3)**
+- [x] P0: tenancy + migration · สวิตช์ฟีเจอร์ต่อหอ (403 `feature_disabled`) · Settings · เปลี่ยนผู้เช่า · messages · งานเบื้องหลัง (advisory lock) · features.css / icons / i18n
+- [x] P1: บิลรายเดือน + มิเตอร์ + PromptPay + สลิป + ใบเสร็จ · ค่าปรับ + รูปหลักฐาน + โต้แย้ง
+- [x] P2: ที่จอดรถ (สิทธิ์, โควตา, คิวรอ, บัตรผู้มาเยือน, แจ้งยกเลิก 15 วัน)
+- [x] P3: ฟิตเนส/สระด้วย QR (BarcodeDetector + jsQR + รูปถ่าย) · จองห้องส่วนกลาง (EXCLUDE, โควตา, งดจอง)
+- [x] Session ยกเลิกได้ (hash ใน DB, idle/absolute timeout, ออกจากระบบเครื่องอื่น)
+- [x] `tools/flow_test.py` 77 ข้อ ผ่านทั้งเครื่องทีมและแล็บ · UI ไทย/อังกฤษครบ · dark mode
+
+**Platform**
+- [x] store-01: SeaweedFS (S3 HTTPS) + เข้ารหัสไฟล์ AES-256-GCM + 2 บัญชี S3
+- [x] db-02: async streaming replication + `make_standby.sh` / `failover.sh` / `rejoin.sh` + กัน split-brain → ทดสอบ A11
+- [x] Backup v2: dump จาก standby + base + WAL + objects เข้ารหัสบน laptop · ทดสอบกู้ทุกครั้ง · PITR drill (A12)
+- [x] Boot hook ทุกเครื่อง (firewall + บริการกลับมาเองหลัง restart)
+- [x] api-N auto-wiring (`topology.env` + `scale_api.sh`) → ทดสอบด้วย api-03
+- [x] watchdog = active health check ของ Nginx (พบปัญหาตอนทดสอบ A9)
+- [x] Grafana: 2 data sources · dashboard "Platform & Business" · 7 alerts → อีเมล · mon-01 ขยายเป็น 512 MB
+- [x] CI (GitHub Actions) · k6 load test 1/2/3 API
+- [x] เอกสาร: Architecture v2 (หัวข้อ 16) · HANDOFF · `DECISIONS.md`
+- [x] ข้ามโดยตั้งใจ: Owner 2FA, docker-compose dev
+
 ### ⬜ Sprint 2 — Demo Day
 - [ ] สัมภาษณ์เจ้าของหอ 2–3 ราย → ใส่ในสไลด์
 - [ ] สไลด์ pitch 5 นาที (โครงด้านล่าง)
 - [ ] สคริปต์ live demo 5 นาที (Architecture 14.3) + อัดวิดีโอสำรอง
-- [ ] ติดตั้ง mkcert CA บนเครื่อง demo · ทดสอบเน็ตห้องนำเสนอ
+- [ ] ทดสอบเน็ตห้องนำเสนอ (ใบรับรอง Let's Encrypt ไม่ต้องติดตั้ง CA แล้ว)
 - [ ] ซ้อมตอบ Q&A ข้อ 12 · ซ้อมจับเวลา 2 รอบ
-- [ ] (ถ้ามีเวลา) AI Insight
+- [x] AI Insight (27 ก.ย.)
+- [ ] ซ้อม A11 (failover DB) + A9 สด 1 รอบก่อนวันจริง
 
 **โครงสไลด์ pitch 5 นาที**
 1. ปัญหา + คำพูดจริงจากเจ้าของหอ (45 วิ)
 2. ลูกค้า + ทำไม LINE/Google Form ไม่พอ (45 วิ)
 3. โซลูชัน + ภาพหน้าจอ (45 วิ)
 4. สถาปัตยกรรม: แผนภาพ 2 subnet + ทางเข้าเดียว + ตาราง firewall (1 นาที)
-5. ความปลอดภัยหลายชั้น + แยกข้อมูลหอ 3 ชั้น (45 วิ)
+5. ความปลอดภัยหลายชั้น + แยกข้อมูลหอ 3 ชั้น + ไฟล์เข้ารหัส (45 วิ)
+5b. ความทนทาน: db-02 failover ~35 วิ · PITR · load test 1→2 API +32 % (30 วิ)
 6. ข้อจำกัดของ Cloud Lab → ถ้าย้ายไป AWS จะเป็นอย่างไร (30 วิ)
 7. โมเดลธุรกิจ + roadmap (AI Insight) (30 วิ)
 
@@ -263,11 +295,11 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | **HTTPS 443 แทน HTTP 80** (mkcert) | ข้อมูลผู้เช่าและ session ต้องเข้ารหัส · ไม่มีโดเมนจึงใช้ mkcert |
 | **เพิ่ม api-02 + Nginx load balance** | โชว์ HA ชั้น API · API ไม่มีสถานะจึงทำได้ง่าย · ระดับ Should |
 | **เพิ่ม mon-01 (Grafana)** | ทีมเห็นการโจมตี/ใช้งานผิดปกติ · ระดับ Should |
-| **เก็บรูปในฐานข้อมูล** แทนดิสก์ของ api-01 | ไม่มี object storage + ให้ api-01/02 ไม่มีสถานะ |
+| ~~เก็บรูปในฐานข้อมูล~~ → v2 ย้ายไป store-01 | ไฟล์ใหญ่ทำให้ DB/backup/replication บวม · สลิปอ่อนไหว |
 | **Row-Level Security แบบ FORCE + SET LOCAL** | ชั้นป้องกันสุดท้ายถ้าโค้ดลืมกรอง · กันค่าค้างข้าม connection |
 | **Firewall ขาออกด้วย (default deny)** | ถ้าเครื่องถูกยึด ส่งข้อมูลออกไม่ได้ |
 | **Rate limit ต่อห้องเป็นหลัก ต่อ IP เป็นชั้นนอกแบบหลวม** | ผู้เช่าทั้งหอใช้ IP เดียวกัน + NAT ของแล็บอาจซ่อน IP จริง |
-| **ยอมรับ web-01 / db-01 เป็น single point of failure** | replication DB เกินกรอบ 3 สัปดาห์ · ชดเชยด้วย backup + สร้างใหม่ได้ |
+| ~~ยอมรับ web-01 / db-01 เป็น single point of failure~~ → v2 เหลือแค่ web-01 | db-02 + failover แล้ว (8 ต.ค.) |
 | **POST/PATCH retry ข้ามเครื่องได้ด้วย Idempotency-Key** | tunnel ทำให้ Nginx แยก "API ล่ม" กับ "ส่งแล้วขาด" ไม่ได้ · คีย์กันคำขอซ้ำ |
 | **ตั้ง iptables ในแต่ละเครื่องเอง** | Console firewall มีบั๊ก · เครื่องมี NET_ADMIN · กฎชุดเดียวกับภาคผนวก B · มี rollback 60 วิ กันล็อกตัวเอง |
 | **อีเมลแจ้งเตือนเป็น Should** | ผู้เช่าไม่ต้องคอยเปิดลิงก์ติดตาม — แก้ปัญหา "ต้องทักซ้ำ" จริง · LINE Notify ปิดแล้ว |
@@ -278,6 +310,16 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | **tunnel ใช้บัญชี ddtunnel แทน root** | least privilege: ไม่มี shell, forward ได้แค่ API:8000 |
 | **บอกข้อจำกัดของแล็บตรงๆ ใน pitch** | อ้างสิ่งที่ยังไม่ทำงานเสี่ยงเสียความน่าเชื่อถือใน Q&A |
 | **System_Architecture.md เป็นแหล่งข้อมูลหลัก** | 3 เอกสารเคยขัดกัน (3 vs 5 เครื่อง, 80 vs 443, รูปบนดิสก์ vs DB) |
+| **v2: ข้อมูลผู้เช่าผูกกับ tenancy + RLS ชั้นที่ 2** | ห้องเปลี่ยนคน ข้อมูลคนเก่าต้องไม่ถึงคนใหม่ · ไม่ต้องมีบัญชีผู้เช่า (DECISIONS D1) |
+| **v2: งานเบื้องหลังใน API + advisory lock** | ไม่ต้องมีเครื่อง cron · เครื่องไหนก็ทำแทนได้ (D3) |
+| **v2: SeaweedFS แทน MinIO** | MinIO community ถูก archive 2026 · SeaweedFS Apache-2.0 ใช้ RAM น้อย (D8) |
+| **v2: เข้ารหัสไฟล์ที่ API ก่อนส่ง object store** | store และ backup เห็นแค่ ciphertext (D8) |
+| **v2: async replication + manual failover** | sync 2 เครื่องทำให้เขียนไม่ได้เมื่อ standby ล่ม · auto failover ต้องมีผู้ลงคะแนนตัวที่ 3 (D10) |
+| **v2: boot hook ใน entrypoint ของแล็บ** | ไม่มี systemd · PostgreSQL เป็น PID 1 (D11–D12) |
+| **v2: backup เข้ารหัสบน laptop + ทดสอบกู้ทุกครั้ง + PITR** | backup ที่ไม่เคยกู้คือความหวัง ไม่ใช่ backup (D13) |
+| **v2: topology.env ที่เดียว + scale_api.sh** | เดิมรายชื่อ API อยู่ 3 ที่ (D14) |
+| **v2: watchdog ทำ active health check** | ทดสอบพบว่าคำขอรอ API ที่ตายผ่าน tunnel (D15) |
+| **v2: ข้าม Owner 2FA และ docker-compose** | ไม่คุ้มก่อน Demo Day · CI ทดสอบครบแทน (D9) |
 | MVP scope และ tech stack ไม่ใส่ใน One-Pager | ไม่ใช่สิ่งที่โจทย์ขอ และอาจเปลี่ยน |
 | Chatbot ใส่ใน One-Pager เป็นไอเดียขาย | เพิ่มคุณค่าธุรกิจ ไม่ผูกมัดว่าต้องทำใน MVP |
 | ชื่อระบบ: DormDesk | สื่อชัดว่าเป็นระบบรับเรื่องของหอพัก จำง่าย |
@@ -296,6 +338,10 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | 27 ก.ย. 2026 | AI Insight (ai-01 + Qwen3-0.6B, template fallback, ตรวจตัวเลข) · อีเมล Gmail · Let's Encrypt ผ่าน DuckDNS · tunnel ใช้บัญชี ddtunnel · UI ใหม่ + TH/EN · repo GitHub |
 | 27 ก.ย. 2026 | ต่อยอด: api-02 + HA (Idempotency-Key), Grafana dashboard, iptables ทุกเครื่อง, backup/restore, `tools/verify.sh` 20/20, แก้ http→https redirect + favicon |
 | 27 ก.ย. 2026 | เขียนโค้ดต้นแบบ (FastAPI + PostgreSQL RLS + หน้าเว็บผู้เช่า/เจ้าของ) · deploy db-01, api-01, web-01 · seed 2 หอ 63 คำขอ · พบว่าแล็บทิ้งทราฟฟิกข้าม subnet → ใช้ SSH tunnel ผ่าน bastion · smoke test 15/15 ผ่าน |
+| 8 ต.ค. 2026 | **v2:** Feature Spec v2 ครบ (P0–P3) + session ยกเลิกได้ · ทดสอบในเครื่อง flow 77/77 + UI 10/10 (Playwright, TH/EN, dark) |
+| 8 ต.ค. 2026 | สร้าง store-01 (SeaweedFS HTTPS) + db-02 (standby) · migrate DB 02/03 + seed ใหม่ · deploy API 2.0 ทุกเครื่อง · boot hook ทุกเครื่อง · restart db-01 (archive_mode) — boot hook ตรวจเครื่องคู่ผ่าน |
+| 8 ต.ค. 2026 | Grafana ค้างเพราะ RAM 256 MB → resize mon-01 เป็น 512 MB (พบบั๊ก Console เติมชื่อกลุ่มซ้ำ → แก้ใน `console.sh`) · 7 alerts + ทดสอบอีเมล |
+| 8 ต.ค. 2026 | ทดสอบบนแล็บ: verify 48/48 · smoke 16/16 · flow 77/77 · backup + กู้คืน · PITR_OK · A11 failover → db-01 กันตัวเอง → rejoin → switchover กลับไม่เสียข้อมูล · A9 พบคำขอค้าง → เพิ่ม watchdog health check · api-03 scale out/in · k6 1/2/3 API |
 
 ---
 
@@ -312,11 +358,15 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | แยกข้อมูลแต่ละหออย่างไร ทดสอบอย่างไร? | 3 ชั้น: รหัสสุ่ม · `dorm_id` จาก session + `admin_dorms` · RLS แบบ FORCE — โชว์ A1–A3 สด |
 | ถ้าโค้ดลืมกรอง `dorm_id`? | RLS คืน 0 แถว เพราะไม่ได้ตั้ง `app.dorm_id` (A3) |
 | ผู้เช่าไม่ login แล้วกันสแปมอย่างไร? | ต้องมีรหัสห้องสุ่ม · 5 เรื่อง/10 นาที/ห้อง · limit ต่อ IP ชั้นนอก · เจ้าของปฏิเสธ/เปลี่ยนรหัสห้องได้ |
-| ทำไม API 2 เครื่อง แต่ DB เครื่องเดียว? | API ไม่มีสถานะ เพิ่มง่าย · DB replication เกินกรอบ → backup + ทดสอบกู้คืน · บน cloud จริงใช้ managed DB แบบ Multi-AZ |
+| ถ้า db-01 ล่ม? | db-02 รับทุกการเปลี่ยนแปลงอยู่แล้ว (async) · `failover.sh` เลื่อนเป็นหลักใน ~35 วิ · API หาเครื่องใหม่เองจาก multi-host DSN · db-01 กลับมาจะกันตัวเอง (ไม่มี split-brain) — `evidence/A11_db_failover_2026-10-08.txt` |
+| ทำไมไม่ failover อัตโนมัติ? | 2 เครื่องแยกไม่ออกว่าอีกเครื่องตายหรือเน็ตขาด → เสี่ยงมีเครื่องหลัก 2 ตัว · ที่ปลอดภัยต้องมีผู้ลงคะแนนตัวที่ 3 (Patroni + etcd) |
+| ทำไม async ไม่ใช่ sync? | sync 2 เครื่อง ถ้า standby ล่ม เครื่องหลักจะเขียนไม่ได้เลย · async เสียได้อย่างมากรายการวินาทีสุดท้าย และมี alert ถ้า standby ตามไม่ทัน |
+| ลบข้อมูลผิดกู้ได้ไหม? | ได้ — PITR จาก base backup + WAL บน laptop ย้อนไปก่อนเกิดเหตุ ทดสอบจริงแล้ว (`A12_backup_pitr_2026-10-08.txt`) |
 | ถ้า api-01 ล่มกลาง POST? | Nginx ส่งซ้ำไป api-02 อัตโนมัติ · ไม่เกิดคำขอซ้ำเพราะมี Idempotency-Key (กดส่งซ้ำ 2 ครั้งก็ได้เรื่องเดียว) · ทดสอบแล้ว `evidence/A9_failover.txt` |
-| ถ้าผู้ใช้เพิ่ม 10 เท่า scale อย่างไร? | เพิ่ม api-03… ในโซน app โดยไม่แก้กฎ DB · ย้ายรูปไป object storage · DB เพิ่ม RAM / read replica สำหรับ dashboard |
-| ทำไม HTTPS ขึ้นคำเตือน? | ไม่มีโดเมนจึงขอใบรับรองสาธารณะไม่ได้ · ยังเข้ารหัสเหมือนกัน · บน cloud จริงใช้ใบรับรองที่ load balancer |
-| เก็บ secret และรูปภาพอย่างไร? | `.env` สิทธิ์ 600 บน api ไม่เข้า git · รูปใน DB อ่านผ่าน API ที่ตรวจสิทธิ์ · ลบ EXIF |
+| ถ้าผู้ใช้เพิ่ม 10 เท่า scale อย่างไร? | `scale_api.sh add` เพิ่ม API คำสั่งเดียว (ทดสอบแล้วด้วย api-03) · load test: 1→2 API +32 % แต่ API ตัวที่ 3 ไม่ช่วยเพราะ DB 0.5 vCPU เต็ม → ขั้นต่อไปคือส่งการอ่านไป db-02 / เพิ่ม CPU ของ DB |
+| เก็บ secret และไฟล์อย่างไร? | `.env` สิทธิ์ 600 บน api ไม่เข้า git · ไฟล์อยู่ใน store-01 แบบเข้ารหัส AES-256-GCM (กุญแจอยู่ที่ API เท่านั้น) · metadata ใต้ RLS · ลบ EXIF |
+| ทำไมไม่ใช้ MinIO? | community edition ถูก archive ในปี 2026 ไม่มี security fix · SeaweedFS (Apache-2.0) ใช้ RAM ~110 MB พอดีเครื่อง 256 MB |
+| แล็บ restart เครื่องแล้วเป็นอย่างไร? | boot hook ตั้ง firewall และสตาร์ตบริการเอง · ฐานข้อมูลตรวจเครื่องคู่ก่อนเริ่ม |
 | PDPA? | เก็บเท่าที่จำเป็น, ขอความยินยอม, ลบหลัง 180 วัน, Grafana/AI เห็นแค่ตัวเลขรวม |
 | AI Insight ป้องกันการเข้าถึงข้อมูลหออื่นอย่างไร? | LLM ไม่ต่อ DB · query ล่วงหน้า + `dorm_id` จาก session + RLS · ส่งแค่ตัวเลขรวม |
 | ต่างจาก LINE OA + Google Form อย่างไร? | รู้ห้องจริง, ผู้เช่าเห็นสถานะ, dashboard เวลาซ่อม/เรื่องค้าง/ห้องเสียซ้ำ, หลายหอในบัญชีเดียว |

@@ -12,17 +12,14 @@
 เราคือกลุ่ม group02 วิชา 010123218 Cloud Network and Computing กำลังทำ mini project
 สวมบทเป็นสตาร์ทอัพ สร้าง MVP ที่ใช้งานได้จริงบน Cloud Lab ของอาจารย์ แล้ว pitch ให้อาจารย์ฟัง
 
-**ผลิตภัณฑ์:** DormDesk — เว็บแอปรับแจ้งซ่อมหอพัก/คอนโด แทนการแจ้งผ่าน LINE
-**สถานะ:** ระบบต้นแบบออนไลน์ที่ **https://dormdesk-g02.duckdns.org:10201** (ใบรับรอง Let's Encrypt) · ผู้เช่าแจ้ง/ติดตาม · เจ้าของ: dashboard, คำขอ, ห้อง, หมวด, **ถาม AI** · อีเมลแจ้งเตือน · TH/EN · รายละเอียดล่าสุดใน Architecture หัวข้อ 15
+**ผลิตภัณฑ์:** DormDesk — เว็บแอปสำหรับหอพัก/คอนโด: แจ้งซ่อม + (v2) บิล/PromptPay/สลิป/ใบเสร็จ, ค่าปรับ, ฟิตเนส/สระด้วย QR, จองห้องส่วนกลาง, ที่จอดรถ — แทนการทำผ่าน LINE + สมุด
+**สถานะ (8 ต.ค. 2026, v2):** ออนไลน์ที่ **https://dormdesk-g02.duckdns.org:10201** · 8 เครื่องบนแล็บ (เพิ่ม **db-02** hot standby และ **store-01** object store) · verify 48/48 · smoke 16/16 · flow 77/77 · failover ฐานข้อมูลและ PITR ทดสอบจริงแล้ว · รายละเอียดใน Architecture หัวข้อ 10 และ 16 · เหตุผลทุกการตัดสินใจใน `DECISIONS.md`
 **เส้นตาย:** Sprint 1 = สัปดาห์ที่ 2, Sprint 2 = Demo Day สัปดาห์ที่ 3, รายงานเต็มสิ้นเทอม
 
 **สิ่งที่ห้ามพลาดในการประเมิน:** อาจารย์ให้คะแนน 2 เรื่อง คือ (1) สถาปัตยกรรม — network, security,
 การแบ่ง tier และ (2) แก้ปัญหาธุรกิจจริงไหม ทุกการตัดสินใจต้องอธิบายเหตุผลได้ และ **ทุกข้ออ้างด้านความปลอดภัยต้องมีผลทดสอบรองรับ** (Architecture หัวข้อ 14)
 
-**3 เรื่องที่ต้องทำก่อนเรื่องอื่น**
-1. แก้ firewall กับอาจารย์ + ตั้งชั้นป้องกันในตัวโปรแกรมระหว่างรอ (Architecture หัวข้อ 10)
-2. ทำเส้นทางหลักให้ทำงานครบ: ผู้เช่าแจ้ง → เจ้าของเห็นและเปลี่ยนสถานะ → ผู้เช่าเห็นสถานะใหม่
-3. พิสูจน์ว่าข้อมูลหอ A กับหอ B ไม่ปนกัน (ทดสอบ A1–A3)
+**ก่อนแก้อะไร อ่าน 3 ไฟล์นี้:** `DormDesk_System_Architecture.md` (ระบบคืออะไร) · `DECISIONS.md` (ทำไมเป็นแบบนี้ + ปัญหาที่เจอ) · `README.md` (คำสั่ง deploy/ทดสอบ)
 
 ---
 
@@ -33,8 +30,10 @@
 | `DormDesk_System_Architecture.md` | **แหล่งข้อมูลหลักด้านสถาปัตยกรรม** — เครื่อง, IP, firewall, ความปลอดภัย, วิธีสร้างใหม่, แผนทดสอบ |
 | `DormDesk_HANDOFF.md` (ไฟล์นี้) | บริบท ผลิตภัณฑ์ สเปคของโค้ด เหตุผลของการตัดสินใจ |
 | `PROJECT_TRACKER.md` | สถานะรายสัปดาห์, checklist, decision log, work log, ซ้อม Q&A |
+| `DECISIONS.md` | v2: ปัญหา → วิธีคิด → ทางเลือก → สิ่งที่เลือก → ผลที่ได้ (D1–D18) + ตารางปัญหาที่เจอระหว่างทำ |
+| `evidence/` | ผลทดสอบจริงทั้งหมด (verify, smoke, flow, failover, PITR, load test, scale-out) |
 | `DormDesk_OnePager.html` / `.pdf` | ส่งมอบ Sprint 0 (หน้าเดียว A4) |
-| `cloud_pass.txt` · `secrets.env` · `demo_accounts.txt` | รหัสเข้าเครื่อง · รหัส DB/SESSION_SECRET · บัญชีเดโม + ลิงก์ห้อง — **เก็บเฉพาะในทีม ห้ามเข้า git** |
+| `cloud_pass.txt` · `secrets.env` · `demo_accounts.txt` · `backups/` | รหัสเข้าเครื่อง · รหัส DB/S3/กุญแจเข้ารหัสไฟล์/backup passphrase · บัญชีเดโม + ลิงก์ห้อง · backup เข้ารหัส — **เก็บเฉพาะในทีม ห้ามเข้า git** |
 | `api/` `web/` `db/` `infra/` `tools/` | โค้ดและสคริปต์ deploy — วิธีใช้ใน `README.md` |
 
 ---
@@ -123,40 +122,46 @@ login → เลือกหอ → เห็นคำขอแยกหมว�
 | Firewall | ตั้งใน Console ทั้งขาเข้า/ขาออก รองรับ CIDR · ใช้ iptables ในเครื่อง |
 | ขาออก internet | ทั้งสอง subnet ออกได้ผ่าน server แล็บ (ต้องจำกัดเองด้วย firewall ขาออก) |
 
-**ผลตรวจที่ยืนยันแล้ว (27 ก.ย. 2026)**
-- ✅ port mapping 10201 → web-01:443 ตั้งได้
+**ผลตรวจที่ยืนยันแล้ว (อัปเดต 8 ต.ค. 2026)**
+- ✅ port mapping 10201 → web-01:443 · Nginx เห็น IP จริงของผู้ใช้
 - ✅ เครื่องใน private subnet ไม่มีทางเข้าจากภายนอก (ยกเว้น bastion ของแล็บ)
-- ❌ กฎ firewall ยังไม่มีผลกับเครื่องจริง — ระบบแล็บหาเครื่องไม่เจอ และ image ไม่มี iptables → ต้องแจ้งอาจารย์
-- ⚠️ รหัสผ่านเริ่มต้นของ PostgreSQL และ Grafana ยังไม่ได้เปลี่ยน
-- ❓ ยังไม่รู้: Nginx เห็น IP จริงของผู้ใช้หรือเห็นเป็น IP ของ server แล็บ (กระทบ rate limit ต่อ IP)
-- ไม่มี object storage → เก็บรูปในฐานข้อมูล
+- ✅ firewall ด้วย iptables ในแต่ละเครื่อง (Console Firewall ยังใช้ไม่ได้ — บั๊กชื่อเครื่อง) · ตั้งใหม่อัตโนมัติหลัง restart (boot hook)
+- ✅ รหัสผ่านเริ่มต้นทั้งหมดเปลี่ยนแล้ว
+- ❌ public ↔ private ข้าม subnet ไม่ได้ → SSH tunnel ผ่าน bastion (Architecture 12.12)
+- ⚠️ Console สร้างรหัส root เอง (ไม่สน `ROOT_PASSWORD`) · ปุ่ม Edit = สร้างเครื่องใหม่และเติมชื่อกลุ่มซ้ำ → ใช้ `infra/lab/console.sh`
+- ⚠️ เครื่องไม่มี systemd และ PostgreSQL เป็น PID 1 → boot hook + staging directory (DECISIONS D11–D12)
+- ไม่มี object storage ของแล็บ → เราตั้ง SeaweedFS เอง (store-01)
 
 ---
 
 ## 5. สถาปัตยกรรม (สรุป — รายละเอียดเต็มใน Architecture)
 
 ```
-ผู้ใช้ ──HTTPS 45.77.40.35:10201──► [public 10.0.2.0/25]  web-01 · Nginx · 10.0.2.10:443
-                                            │  (TLS, rate limit, reverse proxy, load balance)
-                                            └── /api/* → :8000 ──► [private 10.0.2.128/25]
-                                                                   api-01 · FastAPI · 10.0.2.140
-                                                                   api-02 · FastAPI · 10.0.2.141
-                                                                         │
-                                                                         └── :5432 (TLS) ──► db-01 · PostgreSQL · 10.0.2.150
-                                                                   mon-01 · Grafana · 10.0.2.165 ──(อ่านอย่างเดียว)──► db-01
-ทีมดูแล ──SSH 45.77.40.35:22002──► bastion 10.0.2.131 ──SSH──► ทุกเครื่อง
+ผู้ใช้ ──HTTPS 45.77.40.35:10201──► [public]  web-01 · Nginx + watchdog · 10.0.2.10:443
+                                       │  (TLS, rate limit, retry, active health check)
+                                       └── SSH tunnel ──► bastion ──► [private]
+                                             api-01 10.0.2.140 · api-02 10.0.2.141 (+ api-0N)  FastAPI 2.0
+                                                 │ SQL/TLS (multi-host DSN)      │ S3/HTTPS (ไฟล์เข้ารหัส)
+                                                 ▼                               ▼
+                                             db-01 10.0.2.150 (primary) ═WAL═► db-02 10.0.2.151 (hot standby + WAL archive)
+                                                                             store-01 10.0.2.155 (SeaweedFS)
+                                             ai-01 10.0.2.160 (LLM) · mon-01 10.0.2.165 (Grafana + alerts → อีเมล)
+ทีมดูแล (laptop: deploy, backup เข้ารหัส) ──SSH 45.77.40.35:22002──► bastion 10.0.2.131 ──SSH──► ทุกเครื่อง
 ```
 
-| Instance | Subnet | Image | Static IP | Port mapping | ระดับ |
+| Instance | Subnet | Image | Static IP | Port mapping | หน้าที่ |
 |---|---|---|---|---|---|
-| web-01 | public | Nginx | 10.0.2.10 | ✅ 10201 → 443 (ตัวเดียวในระบบ) | Must |
-| api-01 | private | Ubuntu 24.04 + Python/FastAPI | 10.0.2.140 | ❌ | Must |
-| db-01 | private | PostgreSQL 16 | 10.0.2.150 | ❌ | Must |
-| api-02 | private | Ubuntu 24.04 + Python/FastAPI | 10.0.2.141 | ❌ | Should |
-| mon-01 | private | Grafana | 10.0.2.165 | ❌ | Should |
-| bastion | private | (แล็บให้) | 10.0.2.131 | 22002 → 22 (แล็บเปิด) | – |
+| web-01 | public | Nginx | 10.0.2.10 | ✅ 10201 → 443 (ตัวเดียวในระบบ) | เว็บ + ประตู |
+| api-01, api-02 | private | Ubuntu 24.04 + FastAPI | 10.0.2.140, .141 | ❌ | API (เพิ่มได้ถึง .142 ด้วย `scale_api.sh`) |
+| db-01 | private | PostgreSQL 16 | 10.0.2.150 | ❌ | ฐานข้อมูลหลัก |
+| db-02 | private | PostgreSQL 16 | 10.0.2.151 | ❌ | hot standby + WAL archive |
+| store-01 | private | Alpine + SeaweedFS | 10.0.2.155 | ❌ | รูป สลิป หลักฐานค่าปรับ (เข้ารหัส) |
+| ai-01 | private | Ubuntu + llama.cpp | 10.0.2.160 | ❌ | ถาม AI |
+| mon-01 | private | Grafana 13 | 10.0.2.165 | ❌ | dashboards + alerts |
+| bastion | ทั้งสอง | (แล็บให้) | 10.0.2.3 / .131 | 22002 → 22 (แล็บเปิด) | ทีมดูแล + ทางผ่าน tunnel |
 
-- **ไม่เปิด HTTP (80)** — ใช้ HTTPS อย่างเดียว ใบรับรองจาก mkcert (ไม่มีโดเมน)
+- **ไม่เปิด HTTP (80)** — HTTPS อย่างเดียว ใบรับรอง Let's Encrypt (DuckDNS DNS-01)
+- **รายชื่อเครื่องอยู่ที่เดียว:** `infra/topology.env` (config อื่นสร้างจากไฟล์นี้)
 - **กฎ firewall ขาเข้า/ขาออก:** Architecture ภาคผนวก B · **โซน IP:** ภาคผนวก A
 - **วิธีสร้างใหม่ถ้าแล็บ reset:** Architecture หัวข้อ 13
 
@@ -168,18 +173,23 @@ login → เลือกหอ → เห็นคำขอแยกหมว�
 - ทุกตารางที่เก็บข้อมูลลูกค้าต้องมี `dorm_id`
 - ฝั่ง admin: `dorm_id` มาจาก **session ของผู้ login** และต้องตรวจกับ `admin_dorms` ทุกครั้ง
 - **ห้าม**รับ `dorm_id` จาก request body หรือ query string มาใช้ตรง ๆ (path `/dorms/{id}` ใช้ได้เฉพาะหลังตรวจสิทธิ์กับ `admin_dorms`)
-- ฝั่งผู้เช่า: `dorm_id` และ `room_id` มาจาก `resolve_room(code)` / `resolve_tracking(token)` เท่านั้น
+- ฝั่งผู้เช่า: `dorm_id`, `room_id` และ `tenancy_id` มาจาก `resolve_room(code)` / `resolve_tracking(token)` เท่านั้น
+- **v2 — ทุกข้อมูลของผู้เช่ามี `tenancy_id`** (คำขอ บิล ค่าปรับ การจอง check-in ที่จอด ข้อความ) · เปลี่ยนผู้เช่า = ปิด tenancy เก่า + เปิดใหม่ + รหัสห้องใหม่ ใน transaction เดียว
 
 ### 6.2 Row-Level Security (ชั้นป้องกันสุดท้าย)
 - ทุกตารางที่มี `dorm_id`: `ENABLE` + `FORCE ROW LEVEL SECURITY` + policy ตาม Architecture ภาคผนวก C
 - ตารางเป็นของ `postgres` · API ใช้ `dormdesk_app` ที่ไม่ใช่เจ้าของและไม่มี `BYPASSRLS`
-- ทุกคำขอเปิด transaction แล้ว `SET LOCAL app.dorm_id` — **ห้ามใช้ `SET` เฉย ๆ** (ค่าจะค้างใน connection pool)
+- ทุกคำขอเปิด transaction แล้ว `SET LOCAL app.dorm_id` (+ `app.tenancy_id` ฝั่งผู้เช่า) ผ่าน `core.tenant_tx()` — **ห้ามใช้ `SET` เฉย ๆ** (ค่าจะค้างใน connection pool)
+- v2: policy `p_tenancy` แบบ RESTRICTIVE ซ้อนบน `p_tenant` · งานระดับหอทั้งหอ (ฝั่งเจ้าของ/งานเบื้องหลัง) ใช้ `domain.dorm_scope()` ซึ่งยกเฉพาะชั้น tenancy
+- บัญชี `dormdesk_app` ไม่มีสิทธิ์ DELETE ที่ตารางใดเลย (ยกเลิก = เปลี่ยนสถานะ)
 - ฟังก์ชันที่ต้องใช้ก่อนรู้หอ (`resolve_room`, `resolve_tracking`) เป็น `SECURITY DEFINER` คืนแค่ id
 
 ### 6.3 Token และรหัส
 - `room_code` และ `tracking_token` = ค่าสุ่ม 128 bit ขึ้นไป (`secrets.token_urlsafe(16)` หรือ UUIDv4) **ห้ามใช้เลขรัน**
 - เปลี่ยน `room_code` ได้โดยไม่กระทบคำขอเก่า (เก็บ `room_id` ใน request ไม่ใช่ code)
-- รหัสผ่าน admin เก็บแบบ bcrypt · session เป็น token ลงลายเซ็นใน cookie `HttpOnly; Secure; SameSite=Strict` อายุ 8 ชั่วโมง
+- รหัสผ่าน admin เก็บแบบ bcrypt · v2: session = token สุ่มใน cookie `HttpOnly; Secure; SameSite=Strict` · DB เก็บ sha256 (`admin_sessions`) · หมดอายุ idle 2 ชม. / สูงสุด 8 ชม. · ยกเลิกรายเครื่อง/ทุกเครื่องอื่นได้
+- QR ของฟิตเนส/สระ = URL `/q/<token>` (token สุ่ม หมุนได้) · ทุกการสร้างข้อมูลส่ง `Idempotency-Key` (เก็บใน `idem_keys` ใน transaction เดียวกัน)
+- เงินเป็น **สตางค์ (integer)** เสมอ · PromptPay id ของ demo ต้องเป็นค่าที่จ่ายจริงไม่ได้
 
 ### 6.4 Rate limit
 - **หลัก:** สร้างคำขอได้ 5 เรื่อง / 10 นาที **ต่อห้อง** (นับจากฐานข้อมูล — ทำงานได้แม้มี API 2 เครื่อง)
@@ -189,15 +199,17 @@ login → เลือกหอ → เห็นคำขอแยกหมว�
 ### 6.5 ไฟล์อัปโหลด
 - รับเฉพาะ jpg / png / webp ตรวจจากเนื้อไฟล์ (ไม่ใช่นามสกุล) · ไม่เกิน 5 MB
 - แปลงรูปใหม่ (Pillow) เพื่อลบ EXIF เช่นพิกัด GPS
-- **เก็บในฐานข้อมูล** (`request_photos.data` แบบ `bytea`) เพื่อให้ API ไม่มีสถานะในเครื่อง → ทำ HA ได้ · เข้าถึงผ่าน API ที่ตรวจสิทธิ์เท่านั้น
+- **v2: เก็บใน store-01** (SeaweedFS S3) — API เข้ารหัส AES-256-GCM ก่อนส่ง (`storage.save_object`) · metadata อยู่ในตาราง `objects` ใต้ RLS · อ่านผ่าน API ที่ตรวจสิทธิ์เท่านั้น (`load_object`) · ถ้า object store ไม่ได้ตั้งค่า รูปแจ้งซ่อมยัง fallback เป็น `bytea` ได้
+- สลิป: ≤ 5 MB · หลักฐานค่าปรับ ≤ 3 รูป (Nginx รับ 9 MB เฉพาะ endpoint นั้น) · การเปิดดูสลิปถูกบันทึก (`slip_viewed`)
 
 ### 6.6 Secret
-- รหัส database และ `SESSION_SECRET` อยู่ใน `/srv/dormdesk/.env` (สิทธิ์ 600) เท่านั้น ห้าม commit ลง git
-- รหัสทั้งหมดของทีมอยู่ใน `cloud_pass.txt` เท่านั้น
+- รหัส database, S3, `OBJ_KEYS` (กุญแจเข้ารหัสไฟล์) และ `SESSION_SECRET` อยู่ใน `/srv/dormdesk/.env` (สิทธิ์ 600) เท่านั้น ห้าม commit ลง git
+- ต้นฉบับอยู่ใน `secrets.env` (ดูรายการใน `secrets.env.example`) · รหัสเข้าเครื่องอยู่ใน `cloud_pass.txt` · **`OBJ_KEYS` และ `BACKUP_PASSPHRASE` หายเท่ากับไฟล์/backup อ่านไม่ได้อีกเลย**
+- ห้ามวางรหัสใดๆ ใน chat, เอกสาร, evidence หรือ commit
 
 ### 6.7 ข้อมูลส่วนบุคคล (PDPA)
 - เก็บเท่าที่จำเป็น: ชื่อ เบอร์ (อีเมลไม่บังคับ) · มีข้อความแจ้งวัตถุประสงค์ + ช่องยินยอมในฟอร์ม
-- ลบ/ปิดบังชื่อ เบอร์ อีเมล ของคำขอที่ `done` เกิน 180 วัน (เก็บตัวเลขสถิติไว้ได้)
+- ลบ/ปิดบังชื่อ เบอร์ อีเมล ของคำขอที่ `done` เกิน 180 วัน และลบสลิปเก่าเกิน 180 วัน — **ทำอัตโนมัติ** โดยงานเบื้องหลัง (`jobs.retention`)
 - Grafana และ AI เห็นเฉพาะตัวเลขรวม ไม่เห็นข้อมูลระบุตัวบุคคล
 
 ### 6.8 Log และ error
@@ -224,6 +236,18 @@ request_events(id, dorm_id, request_id, from_status, to_status, note, actor, cre
 security_events(id, occurred_at, type, ip, dorm_id, detail)
 ```
 
+**v2 (ไฟล์ `db/02_features.sql`)** — รายละเอียดคอลัมน์ดูในไฟล์ ทุกตารางมี `dorm_id` + RLS:
+```
+tenancies(id, dorm_id, room_id, started_at, ended_at, contact_email, ...)       -- requests/bills/... มี tenancy_id
+dorm_settings(dorm_id, f_fitness, f_pool, f_spaces, f_parking, f_bills, f_fines, กติกาทั้งหมด, promptpay_id, ...)
+facilities · checkins · bookings (EXCLUDE ห้ามทับเวลา) · booking_bans · booking_quota_extra
+parking_permits · parking_waitlist · guest_passes
+bills (UNIQUE room_id, tenancy_id, period) · bill_lines · bill_edits · bill_slips · meter_readings · dorm_counters
+fines · fine_photos · messages · objects (metadata ของไฟล์ใน store-01)
+idem_keys · notifications · admin_sessions · api_heartbeats · job_state · ops_meta
+```
+ลำดับรัน: `01_schema.sql` → `02_features.sql` (ตาราง + migration) → `03_security.sql` (roles, grants, RLS, Grafana views) · ทุกไฟล์รันซ้ำได้
+
 **Index ที่ควรมี:** `requests(dorm_id, status)`, `requests(tracking_token)` unique, `rooms(room_code)` unique, `security_events(occurred_at)`
 **Seed:** หอตัวอย่าง 2 หอ + admin คนละบัญชี (ไว้โชว์ว่าข้อมูลไม่ข้ามกัน) + ข้อมูลย้อนหลังพอให้ dashboard มีกราฟ
 
@@ -248,9 +272,35 @@ security_events(id, occurred_at, type, ip, dorm_id, detail)
 | POST | `/api/admin/rooms/{id}/rotate-code` | admin | ออกรหัสห้องใหม่ |
 | PATCH | `/api/admin/dorms/{id}/categories` | admin | เปิด-ปิดหมวด |
 
+**v2 — ผู้เช่า** (`api/app/tenant.py`, ทุก path ขึ้นต้น `/api/rooms/{code}`)
+
+| กลุ่ม | Endpoints |
+|---|---|
+| หน้าหลัก | GET `/home` · POST `/contact` (อีเมลรับแจ้งเตือน) |
+| ฟิตเนส/สระ | GET `/facilities` · POST `/checkins` (QR) · GET `/checkins/{cid}` · POST `/checkins/{cid}/checkout` |
+| จองห้องส่วนกลาง | GET `/spaces/{fid}/slots` · GET/POST `/bookings` · POST `/bookings/{bid}/confirm` · `/cancel` |
+| ที่จอดรถ | GET `/parking` · POST `/parking/permits` · `/permits/{pid}/messages` · `/permits/{pid}/ack-cancel` · `/parking/guest-passes` · `/parking/waitlist` · `/waitlist/cancel` |
+| บิล | GET `/bills` · GET `/bills/{bid}/promptpay.svg` · POST `/bills/{bid}/slip` · `/bills/{bid}/messages` |
+| ค่าปรับ | GET `/fines` · `/fines/{fid}` · `/fines/{fid}/photos/{pid}` · POST `/fines/{fid}/messages` |
+
+**v2 — เจ้าของ** (`api/app/admin_features.py`, `auth.py`)
+
+| กลุ่ม | Endpoints |
+|---|---|
+| Session | GET `/api/auth/me` · GET `/api/auth/sessions` · POST `/api/auth/sessions/{id}/revoke` · `/revoke-others` |
+| ตั้งค่า | GET/PUT `/api/admin/dorms/{d}/settings` · POST `/dorms/{d}/facilities` · PATCH `/facilities/{fid}` · `/facilities/{fid}/qr.svg` · POST `/facilities/{fid}/rotate-qr` |
+| ห้อง/ผู้เช่า | PATCH `/api/admin/rooms/{id}` (ค่าเช่า) · GET `/rooms/{id}/tenancy` · POST `/rooms/{id}/new-tenancy` |
+| บิล | GET `/dorms/{d}/billing` · PUT `/dorms/{d}/meters` · POST `/dorms/{d}/bills/generate` · GET/PATCH `/bills/{bid}` · POST `/bills/{bid}/issue` · `/confirm` · `/return` · `/cancel` · `/messages` · GET `/bills/{bid}/slips/{sid}` |
+| ค่าปรับ | GET/POST `/dorms/{d}/fines` (multipart + รูป) · GET/PATCH `/fines/{fid}` · POST `/fines/{fid}/messages` · GET `/fines/{fid}/photos/{pid}` |
+| ที่จอด | GET `/dorms/{d}/parking` · POST `/parking/permits/{pid}/approve` · `/return` · `/cancel` · `/withdraw-cancel` · `/messages` · `/parking/waitlist/{wid}/offer` · `/parking/guest-passes/{gid}/decide` |
+| ห้องส่วนกลาง | GET `/dorms/{d}/spaces` · POST `/dorms/{d}/quota-extra` · `/bans/{id}/lift` · `/bookings/{bid}/cancel` |
+| Dashboard | GET `/dorms/{d}/dashboard/extras` |
+
+ทุก endpoint ของฟีเจอร์ที่ปิดอยู่ตอบ **403 `feature_disabled`** · error format เดิม `{ "error": { "code", "message" } }`
+
 ---
 
-## 9. AI Insight Assistant — ออกแบบไว้แล้ว (Could — ยังไม่ต้องทำ)
+## 9. AI Insight Assistant — ✅ ทำแล้ว (27 ก.ย. 2026, ai-01 — Architecture หัวข้อ 15)
 
 **ห้ามให้ LLM ต่อ database หรือเขียน SQL เอง** สถาปัตยกรรมที่ตกลงกันคือ
 
@@ -271,28 +321,22 @@ security_events(id, occurred_at, type, ip, dorm_id, detail)
 
 ---
 
-## 10. งานที่ต้องทำต่อ (Sprint 1)
+## 10. งานที่เหลือ (หลัง v2 — 8 ต.ค. 2026)
 
-### ลำดับ — ทำข้อ 1–4 ให้ผ่านก่อนเขียนฟีเจอร์
-1. **[Infra]** Firewall: แจ้งอาจารย์พร้อมหลักฐาน · ระหว่างรอตั้ง `pg_hba` + `listen_addresses` ให้รับเฉพาะโซน app/mon-01 แบบ `hostssl`
-2. **[Infra]** เปลี่ยนรหัสผ่านเริ่มต้นทั้งหมด · สร้าง git repo + โฟลเดอร์ `infra/` เก็บ config ทุกไฟล์
-3. **[Infra]** ตั้ง HTTPS + reverse proxy บน web-01 · ทำ `/api/health` บน api-01 → เรียกจากภายนอกได้ (ทดสอบ N1)
-4. **[Infra]** ตรวจว่า Nginx เห็น IP จริงของผู้ใช้หรือไม่ (Architecture 12.8)
-5. **[Backend]** schema + บัญชีแยกสิทธิ์ + RLS ตามข้อ 6.2 + seed 2 หอ → ทดสอบ A3 ทันที
-6. **[Backend]** endpoint ฝั่งผู้เช่า → ฝั่ง admin → rate limit → อัปโหลดรูป → dashboard
-7. **[Frontend]** หน้าแจ้งปัญหา (มือถือก่อน) → หน้าติดตาม → admin login → รายการคำขอ → dashboard → ตั้งค่าหมวด/ห้อง
-8. **[Should]** api-02 + load balance · Grafana บน mon-01 · อีเมลแจ้งเตือน
-9. **[ทุกคน]** รันแผนทดสอบ Architecture หัวข้อ 14 ครบ เก็บหลักฐานใน `evidence/` และเขียน `verify.sh`
+### ก่อน Demo Day
+1. **[ทุกคน]** อ่าน `DECISIONS.md` ให้ตอบได้ว่าทำไมเลือก async replication, SeaweedFS, manual failover, boot hook
+2. **[Infra]** ซ้อม A11 (failover db) และ A9 (ปิด api-01) บนแล็บจริงอย่างละครั้ง — คำสั่งใน `README.md`
+3. **[Infra]** รัน `tools/backup.sh` ทุกวันจาก laptop (Grafana จะเตือนถ้าเกิน 26 ชม.) · `tools/backup.sh base` สัปดาห์ละครั้ง
+4. **[Frontend]** ถ่ายภาพหน้าจอ v2 (บิล/QR/จอง/ที่จอด/ค่าปรับ) สำหรับสไลด์
+5. **[ทุกคน]** สไลด์: ใช้ผล load test (`evidence/loadtest_summary_2026-10-08.txt`) ตอบคำถาม "scale อย่างไร"
 
-### Definition of Done ของ Sprint 1
-- เข้าเว็บจากภายนอกได้ผ่าน web-01 ทาง HTTPS เท่านั้น
-- แจ้งปัญหา → เห็นในหน้า admin → เปลี่ยนสถานะ → ผู้เช่าเห็นสถานะใหม่จาก tracking link
-- ทดสอบ N1–N6 และ A1–A8 ผ่าน พร้อมหลักฐาน · N7–N8 ผ่าน หรือมีคำอธิบายจากสถานะ firewall ของแล็บ
+### ถัดไป (roadmap)
+- ส่งหน้าอ่านอย่างเดียวไปที่ db-02 (ผล load test ชี้ว่าฐานข้อมูลคือคอขวดถัดไป)
+- failover อัตโนมัติ (Patroni + etcd 3 เครื่อง) · Owner 2FA · docker-compose สำหรับ dev
 
-### Sprint 2
-สไลด์ pitch 5 นาที, สคริปต์ demo 5 นาที (Architecture 14.3) + อัดวิดีโอสำรอง, ซ้อมตอบ Q&A (Tracker ข้อ 12), ซ้อมจับเวลา, ติดตั้ง mkcert CA บนเครื่อง demo
-
----
+### วิธีทดสอบ (ทุกครั้งที่แก้โค้ด)
+- เครื่องทีม: `python3 tools/flow_test.py http://127.0.0.1:8000` และ `tools/smoke_test.py` (CI รันให้ทุก push)
+- แล็บ: `tools/verify.sh` · `tools/smoke_test.py` · `tools/flow_test.py https://dormdesk-g02.duckdns.org:10201 --lab`
 
 ## 11. เตรียมตอบ Technical Q&A
 
@@ -304,5 +348,5 @@ security_events(id, occurred_at, type, ip, dorm_id, detail)
 - ยึด `DormDesk_System_Architecture.md` เป็นข้อเท็จจริงด้าน network/เครื่อง/firewall อย่าเปลี่ยนเลข IP หรือ subnet เอง
 - ข้อ 6 คือกฎที่ห้ามละเมิดเวลาเขียนโค้ด โดยเฉพาะ `dorm_id`, RLS และ token สุ่ม
 - ถ้าเสนอทางเลือกใหม่ ให้บอกเหตุผลและผลกระทบต่อ 4 ข้อกำหนดบังคับของวิชาเสมอ
-- ถ้ามีการตัดสินใจใหม่ ให้เพิ่มลง decision log ใน `PROJECT_TRACKER.md` และแก้ให้ทั้ง 3 ไฟล์ตรงกัน
+- ถ้ามีการตัดสินใจใหม่ ให้เพิ่มลง `DECISIONS.md` (ปัญหา → วิธีคิด → ทางเลือก → สิ่งที่เลือก → ผล) และ decision log ใน `PROJECT_TRACKER.md` แล้วแก้ให้ทุกไฟล์ตรงกัน
 - สิ่งที่ยังไม่ยืนยัน (ข้อ 4 ที่มี ❌ ⚠️ ❓) ห้ามเขียนเป็นข้อเท็จจริงในรายงานหรือสไลด์

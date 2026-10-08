@@ -1,0 +1,109 @@
+# A11 — database failover: db-01 stopped in the lab console, db-02 promoted (2026-10-08T08:36:35Z)
+## 1. kill the primary
+stop db-01 (f02099ba9b1c) -> HTTP 302
+## 2. failover
+== 1/5 standby db-02 (10.0.2.151)
+replay age 27 s, received 0/220000A0, replayed 0/220000A0
+== 2/5 fence old primary db-01 (10.0.2.150)
+channel 0: open failed: connect failed: No route to host
+stdio forwarding failed
+kex_exchange_identification: Connection closed by remote host
+Connection closed by UNKNOWN port 65535
+   unreachable — treated as dead. If it comes back, its boot hook sees the new primary and fences itself.
+== 3/5 promote db-02
+   promoted: t
+== 4/5 topology: primary is now 10.0.2.151
+   grafana: datasource dormdesk-pg -> 10.0.2.151:5432 (200)
+   grafana: datasource dormdesk-pg-standby -> 10.0.2.150:5432 (200)
+   grafana: {"results":{"A":{"status":200,"frames":[{"schema":{"refId":"A","meta":{"typeVersion":[0,0],"executedQueryString":"SELECT role, standby_count FROM ops_replication()"},"fields":[{"name":"role","type":"string","typeInfo":{"
+== 5/5 smoke test through the public URL
+
+16/16 passed
+failover took 42 s. Next: infra/db/rejoin.sh  (rebuild db-01 as the new standby)
+## 3. what users saw (/api/health every 2 s)
+      2 t+1s "db":"ok" "db_host":"10.0.2.150" 
+      7 t+8s no answer
+      9 t+42s "db":"ok" "db_host":"10.0.2.151" 
+
+## 4. old primary comes back (console start db-01): the boot hook must fence it
+start db-01 (f02099ba9b1c) -> HTTP 302
+peer 10.0.2.151 says in_recovery='t' -> starting normally
+firewall applied: db
+=== boot 2026-10-08T08:37:53Z role=db
+peer 10.0.2.151 is already PRIMARY and I am not a standby -> FENCING myself (db-fenced, read-only)
+firewall applied: db-fenced
+role=db-fenced
+on
+f
+### API servers still use db-02:
+{"status":"ok","db":"ok","db_host":"10.0.2.151","storage":"ok","served_by":"api-01","version":"2.0.0"}
+
+## 5. rejoin: rebuild db-01 as a standby of db-02 (infra/db/rejoin.sh)
+== 1/5 primary 10.0.2.151: replication slot standby_150 (reserves WAL from now on)
+slot created standby_150
+== 2/5 db-01 (10.0.2.150): boot hook + firewall (db role)
+boot hook installed (db-01, role=db)
+firewall applied: db
+db-01: access OK, rollback cancelled
+== 3/5 db-01: pg_basebackup into staging
+pg_basebackup from 10.0.2.151 ...
+staged: 49.4M	/var/lib/postgresql/standby.new
+== 4/5 restart db-01 via the lab console (boot hook swaps the data directory)
+restart db-01 (f02099ba9b1c) -> HTTP 302
+== 5/5 check: db-01 in_recovery=t
+ application_name | client_addr |   state   | sync_state |   replay_lag    
+------------------+-------------+-----------+------------+-----------------
+ db01             | 10.0.2.150  | streaming | async      | 00:00:00.001547
+(1 row)
+
+peer 10.0.2.151 is already PRIMARY and I am not a standby -> FENCING myself (db-fenced, read-only)
+firewall applied: db-fenced
+=== boot 2026-10-08T08:39:23Z role=db
+standby data directory swapped in (old copy: /var/lib/postgresql/data.old.20261008083923)
+firewall applied: db
+STANDBY_OK db-01 follows 10.0.2.151
+
+## 6. planned switchover back to db-01 (infra/db/failover.sh --planned): zero data loss
+== 1/5 standby db-01 (10.0.2.150)
+replay age 38 s, received 0/260022F8, replayed 0/260022F8
+== 2/5 fence old primary db-02 (10.0.2.151)
+   firewall db-fenced + read-only + app sessions closed
+   waiting for standby to replay up to 0/260022F8
+   standby has every committed transaction (zero data loss)
+== 3/5 promote db-01
+   promoted: t
+== 4/5 topology: primary is now 10.0.2.150
+   grafana: datasource dormdesk-pg -> 10.0.2.150:5432 (200)
+   grafana: datasource dormdesk-pg-standby -> 10.0.2.151:5432 (200)
+   grafana: {"results":{"A":{"status":200,"frames":[{"schema":{"refId":"A","meta":{"typeVersion":[0,0],"executedQueryString":"SELECT role, standby_count FROM ops_replication()"},"fields":[{"name":"role","type":"string","typeInfo":{"
+== 5/5 smoke test through the public URL
+
+16/16 passed
+failover took 31 s. Next: infra/db/rejoin.sh  (rebuild db-02 as the new standby)
+### what users saw
+      3 t+1s "db":"ok" "db_host":"10.0.2.151" 
+      2 t+11s no answer
+      7 t+19s "db":"ok" "db_host":"10.0.2.150" 
+
+## 7. rejoin db-02 as standby of db-01
+== 1/5 primary 10.0.2.150: replication slot standby_151 (reserves WAL from now on)
+slot created standby_151
+== 2/5 db-02 (10.0.2.151): boot hook + firewall (db role)
+boot hook installed (db-02, role=db-fenced)
+== 3/5 db-02: pg_basebackup into staging
+pg_basebackup from 10.0.2.150 ...
+staged: 49.4M	/var/lib/postgresql/standby.new
+== 4/5 restart db-02 via the lab console (boot hook swaps the data directory)
+restart db-02 (9f26ac380d9d) -> HTTP 302
+== 5/5 check: db-02 in_recovery=t
+ application_name | client_addr |   state   | sync_state |   replay_lag    
+------------------+-------------+-----------+------------+-----------------
+ db02             | 10.0.2.151  | streaming | async      | 00:00:00.003471
+(1 row)
+
+standby data directory swapped in (old copy: /var/lib/postgresql/data.old.20261008081500)
+firewall applied: db
+=== boot 2026-10-08T08:41:11Z role=db-fenced
+standby data directory swapped in (old copy: /var/lib/postgresql/data.old.20261008084111)
+firewall applied: db
+STANDBY_OK db-02 follows 10.0.2.150

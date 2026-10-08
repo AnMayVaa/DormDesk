@@ -1,0 +1,145 @@
+{
+    "metrics": {
+        "http_req_duration": {
+            "max": 2076.974126,
+            "avg": 1176.5649304617546,
+            "med": 1330.0665725,
+            "p(90)": 1613.4055400999998,
+            "p(95)": 1733.350888,
+            "thresholds": {
+                "p(95)<1500": true
+            }
+        },
+        "http_req_waiting": {
+            "max": 2076.888116,
+            "avg": 1176.0490697003984,
+            "med": 1329.8107865,
+            "p(90)": 1613.2187635,
+            "p(95)": 1732.8066757499996
+        },
+        "iterations": {
+            "count": 625,
+            "rate": 12.391672223481095
+        },
+        "http_reqs": {
+            "count": 2510,
+            "rate": 49.76495564950008
+        },
+        "http_req_sending": {
+            "avg": 0.11140816135458148,
+            "med": 0.0993245,
+            "p(90)": 0.17146,
+            "p(95)": 0.19936704999999993,
+            "max": 0.974954
+        },
+        "data_received": {
+            "count": 3565339,
+            "rate": 70688.81960575018
+        },
+        "vus": {
+            "value": 3,
+            "min": 3,
+            "max": 80
+        },
+        "data_sent": {
+            "count": 214299,
+            "rate": 4248.836745311641
+        },
+        "http_req_tls_handshaking": {
+            "avg": 2.9483195326693226,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "max": 145.984126
+        },
+        "vus_max": {
+            "value": 80,
+            "min": 80,
+            "max": 80
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 2510,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 1176.5649304617546,
+            "med": 1330.0665725,
+            "p(90)": 1613.4055400999998,
+            "p(95)": 1733.350888,
+            "max": 2076.974126
+        },
+        "http_req_connecting": {
+            "avg": 2.521534329880477,
+            "med": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "max": 131.389618
+        },
+        "http_req_blocked": {
+            "p(95)": 0.0010369499999999976,
+            "max": 488.048137,
+            "avg": 5.659413282868529,
+            "med": 0.000551,
+            "p(90)": 0.0008410999999999999
+        },
+        "http_req_receiving": {
+            "avg": 0.4044526000000003,
+            "med": 0.107855,
+            "p(90)": 0.49015589999999903,
+            "p(95)": 2.4836012999999975,
+            "max": 25.226957
+        },
+        "checks": {
+            "passes": 2510,
+            "fails": 0,
+            "value": 1
+        },
+        "iteration_duration": {
+            "avg": 5029.748757915202,
+            "med": 5764.135187,
+            "p(90)": 6574.872889,
+            "p(95)": 6681.781601199999,
+            "max": 7165.693696
+        }
+    },
+    "root_group": {
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "home 200": {
+                    "name": "home 200",
+                    "path": "::home 200",
+                    "id": "d5a546618676c7c5737c4af152946908",
+                    "passes": 628,
+                    "fails": 0
+                },
+                "bills 200": {
+                    "name": "bills 200",
+                    "path": "::bills 200",
+                    "id": "49907da422a572c72fe189efdeaeddc2",
+                    "passes": 628,
+                    "fails": 0
+                },
+                "facilities 200": {
+                    "path": "::facilities 200",
+                    "id": "8301d9276bf8dbcd06c145da161d08b3",
+                    "passes": 628,
+                    "fails": 0,
+                    "name": "facilities 200"
+                },
+                "parking 200": {
+                    "name": "parking 200",
+                    "path": "::parking 200",
+                    "id": "744fe00b14c852a8cebaa124c77cd8e5",
+                    "passes": 626,
+                    "fails": 0
+                }
+            },
+        "name": "",
+        "path": ""
+    }
+}

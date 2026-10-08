@@ -1,0 +1,17 @@
+# A9 v2 — API server killed in the lab console, then started again: it serves again by itself  2026-10-08T08:45:36Z
+# web-01 watchdog marks a dead API 'down' in Nginx within ~10 s (active health check), so no request waits on it
+## stop api-01
+stop api-01 (7043f4c3fb06) -> HTTP 302
+## smoke test while api-01 is down
+16/16 passed
+## start api-01 again (no deploy, no laptop script)
+start api-01 (7043f4c3fb06) -> HTTP 302
+firewall applied: api
+start /etc/dormdesk/start.d/50-api
+{"status":"ok","db":"ok","db_host":"10.0.2.150","storage":"ok","served_by":"api-01","version":"2.0.0"}
+2026-10-08T08:45:05Z watchdog: upstream rewritten, down=[]
+2026-10-08T08:46:04Z watchdog: upstream rewritten, down=[8001]
+2026-10-08T08:46:38Z watchdog: upstream rewritten, down=[]
+## a tenant page request every second during the test (status/seconds; 404 = expected for room code x):
+404/0.677609 404/0.376004 404/0.432755 404/0.418052 404/0.447024 404/0.352584 404/0.335182 404/0.421699 404/0.415440 404/0.345472 404/0.335098 000/5.000250 404/0.534957 000/5.001704 404/0.427146 404/0.380596 404/0.330356 404/0.315700 404/0.343669 404/0.381583 404/0.298218 404/0.471152 404/0.383485 404/0.335894 404/0.501148 404/0.481323 404/0.360896 404/0.347784 404/0.316356 404/0.377553 404/0.277859 404/0.324736 404/0.250646 404/0.329370 404/0.345898 404/0.274038 404/0.679651 404/0.470336 404/0.357206 404/0.378113 404/0.649777 404/0.298035 404/0.310358 404/0.299667 404/0.648962 404/0.348732 404/0.334244 404/0.430639 404/0.324906 404/0.345793 404/0.345051 404/0.340519 404/0.324022 404/0.341721 404/0.372411 404/0.409488 404/0.387040 404/0.288849 404/0.408391 404/0.442083 404/0.345277 404/0.343642 404/0.341433 404/0.406857 404/0.367778 404/0.320505 404/0.266987 404/0.515472 404/0.331132 404/0.342913 
+failed: 2  slower than 3 s: 2

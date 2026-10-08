@@ -1,0 +1,100 @@
+# flow_test.py --lab (v2, 77 checks) against https://dormdesk-g02.duckdns.org:10201 — 2026-10-08 (before the final re-seed)
+
+## tenant hub
+PASS room 305 home loads
+PASS all six features on in dorm 1
+PASS fine banner data: open/disputed fine visible
+PASS current bill summary present
+PASS tenant saves notification e-mail (with consent)
+PASS e-mail without consent rejected
+
+## fitness / pool check-in
+PASS facilities list with occupancy
+PASS check-in by scanning the gym QR
+PASS same Idempotency-Key -> same check-in (no double count)
+PASS second person of the room checks in (pool)
+PASS third check-in refused: room limit 2
+PASS check-in pass (room, times, active)
+PASS unknown QR rejected
+PASS dorm 1 QR does not work from a dorm 2 room link
+PASS check-out frees the room's slots
+
+## common-space booking
+PASS slots for a day in 2 days
+PASS book a free slot (auto-approved)
+PASS another room sees the slot as taken (free/busy only)
+PASS double booking refused by the DB exclusion constraint
+PASS weekly quota counts the booking
+PASS cancel > 2 h before: no strike, quota returned
+PASS other room cannot touch this booking
+
+## parking
+PASS parking page: quota + existing permit
+PASS apply for a motorcycle permit
+PASS owner returns it with a message
+PASS tenant fixes and resubmits the same request
+PASS owner approves (within quota)
+PASS approving over quota needs confirmation (409 over_quota)
+PASS owner confirms the extra space
+PASS owner cancels with reason -> cancel_notice (15 days)
+PASS tenant replies in the permit thread
+PASS tenant acknowledges -> cancelled immediately
+PASS guest pass for today
+PASS owner B cannot cancel a dorm 1 permit
+
+## bills, slips, receipts
+PASS tenant sees bills with lines
+PASS PromptPay QR (SVG) for the exact amount
+PASS upload payment slip (encrypted to the object store)
+PASS owner sees the slip waiting
+PASS owner opens the slip image (decrypted)
+PASS owner B cannot open a dorm 1 slip
+PASS room 101 cannot use room 305's bill
+PASS owner returns the slip with a message
+PASS tenant sees 'returned' + the owner's message
+PASS owner confirms -> paid + gapless receipt number
+PASS a paid bill cannot be edited (409)
+
+## bill generation
+PASS generate next month's drafts (metered rooms wait for readings)
+PASS generating twice creates nothing (unique room+tenancy+period)
+PASS owner enters meter readings for all rooms
+PASS draft bill has automatic lines (rent, common, parking/fines when due)
+PASS owner completes and issues a draft
+PASS editing an issued bill needs a reason
+PASS ...and is recorded in the edit history
+
+## fines
+PASS owner issues a fine with photo evidence
+PASS tenant sees the red fine banner
+PASS fine detail: reason, photos, contact
+PASS tenant opens the evidence photo
+PASS room 102 cannot see room 101's fine
+PASS ...nor its photo
+PASS tenant reply turns the fine into 'disputed'
+PASS owner reduces the amount after talking
+PASS owner cannot raise above the original amount
+PASS owner B cannot read a dorm 1 fine
+
+## feature switches are enforced by the API
+PASS parking switched off -> tenant API answers 403
+PASS ...and the hub no longer lists it
+PASS rule values are range-checked by the database
+PASS owner B cannot change dorm 1 settings
+PASS dorm 2 (features off) -> 403 on facilities
+
+## change of tenant
+PASS preview of what will be closed
+PASS owner starts a new tenancy
+PASS old room link -> 404 immediately
+PASS new tenant starts from zero (no bill, no fines)
+PASS new tenant sees none of the previous bills
+PASS owner still sees the previous tenancy in history
+
+## revocable sessions
+PASS sessions list shows several devices
+PASS sign out other devices
+PASS the other session is rejected at once (401)
+PASS logout kills the session server-side
+
+77/77 passed

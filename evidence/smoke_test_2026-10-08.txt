@@ -1,0 +1,19 @@
+# smoke_test.py (v1, 16 checks) against the lab — 2026-10-08T09:06:34Z
+PASS N1 health over HTTPS  ({'status': 'ok', 'db': 'ok', 'db_host': '10.0.2.150', 'storage': 'ok', 'served_by': 'api-02', 'version': '2.0.0'})
+PASS tenant opens room link  (101)
+PASS tenant creates request  (201)
+PASS same Idempotency-Key does not create a duplicate
+PASS tracking link works
+PASS A4 guessed room code rejected
+PASS A4 guessed tracking token rejected
+PASS admin API needs login
+PASS owner A login
+PASS owner A sees only dorm 1  ([{'id': 1, 'name': 'หอพักบ้านสบาย'}])
+PASS A1 owner A blocked from dorm 2 list  (403)
+PASS A1 owner A blocked from dorm 2 dashboard  (403)
+PASS owner A updates status
+PASS tenant sees new status
+PASS A2 owner B cannot modify dorm 1 request  (403)
+PASS dashboard
+
+16/16 passed
