@@ -1,0 +1,4 @@
+{"identities":[
+ {"name":"dormdesk-api","credentials":[{"accessKey":"ciapikey","secretKey":"ciapisecret"}],"actions":["Read:dormdesk","Write:dormdesk","List:dormdesk"]},
+ {"name":"dormdesk-backup","credentials":[{"accessKey":"cibackupkey","secretKey":"cibackupsecret"}],"actions":["Read:dormdesk","List:dormdesk"]}
+]}
