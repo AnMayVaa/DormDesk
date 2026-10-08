@@ -68,8 +68,12 @@
     $("dormTitle").textContent = dorm ? dorm.name : "";
     $("dormTitle").setAttribute("translate", "no");
     $("tabs").querySelectorAll("[data-tab]").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)); b.tabIndex = b.dataset.tab === S.tab ? 0 : -1; });
+    const X = window.DD_ADMIN_EXT;
+    const ctx = { dormId: S.dormId, dorm, fail, rerender: () => render() };
     try {
-      await ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats, ai: renderAI })[S.tab]();
+      X.syncTabs(ctx).then((tab) => { if (tab && tab !== S.tab) { S.tab = tab; render(); } }).catch(() => {});
+      const ext = { billing: X.billing, parking: X.parking, spaces: X.spaces, settings: X.settings }[S.tab];
+      await (ext ? ext($("panel"), ctx) : ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats, ai: renderAI })[S.tab]());
       $("updated").textContent = t("อัปเดต {t}", { t: new Date().toLocaleTimeString(DD_I18N.locale, { hour: "2-digit", minute: "2-digit" }) });
       if (toastAfter === true) DD.toast("อัปเดตข้อมูลแล้ว");
     } catch (e) { fail(e); }
@@ -117,6 +121,7 @@
         el("section", { class: "card reveal", "data-i": 7 }, el("div", { class: "card-title" }, DD.icon("clock"), el("h2", { class: "mt-0", text: "เวลาซ่อมเฉลี่ยตามหมวด (ชม., 90 วัน)" })),
           bars(d.resolve_hours_by_category_90d, "category", "hours", "", avg || 48))));
     $("panel").querySelectorAll("[data-i]").forEach((n) => n.style.setProperty("--i", n.dataset.i));
+    window.DD_ADMIN_EXT.dashExtras($("panel"), { dormId: S.dormId, fail }).catch(fail);   // v2 section, kept apart from repair data
   }
   function setOpenCount(n) { $("openCount").textContent = n; $("openCount").classList.toggle("hidden", !n); }
 
@@ -126,6 +131,7 @@
       el("span", { class: "room-no", text: r.room_no, translate: "no" }),
       el("span", {}, el("div", { class: "row-title", text: r.title, translate: "no" }),
         el("div", { class: "row-meta" }, r.category ? el("span", { text: r.category }) : null, el("span", { text: DD.ago(r.created_at) }),
+          r.prev_tenant ? el("span", { class: "badge rejected", text: "ผู้เช่าก่อนหน้า" }) : null,
           r.photo_count ? el("span", { class: "row" }, DD.icon("camera"), r.photo_count) : null)),
       el("span", { class: "row row-end" }, r.priority === "urgent" ? DD.urgent() : null, DD.badge(r.status)));
   }
@@ -241,8 +247,10 @@
             el("button", { class: "btn sm", type: "button", onclick: () => navigator.clipboard.writeText(link).then(() => DD.toast(t("คัดลอกลิงก์ห้อง {room} แล้ว", { room: r.room_no })), () => DD.toast("คัดลอกไม่ได้", "err")) }, DD.icon("copy"), "คัดลอกลิงก์"),
             el("span", { class: "spacer" }),
             el("a", { class: "icon-btn", href: link, target: "_blank", rel: "noopener", title: "เปิดหน้าแจ้งซ่อมของห้องนี้", "aria-label": t("เปิดหน้าแจ้งซ่อมห้อง {room}", { room: r.room_no }) }, DD.icon("eye")),
+            el("button", { class: "icon-btn", type: "button", title: "เปลี่ยนผู้เช่า (เริ่มข้อมูลใหม่ทั้งหมด)", "aria-label": t("เปลี่ยนผู้เช่าห้อง {room}", { room: r.room_no }),
+              onclick: () => window.DD_ADMIN_EXT.changeTenant(r, { dormId: S.dormId, fail, rerender: renderRooms }) }, DD.icon("users")),
             el("button", { class: "icon-btn", type: "button", title: "เปลี่ยนลิงก์ (ลิงก์เก่าใช้ไม่ได้ทันที)", "aria-label": t("เปลี่ยนลิงก์ห้อง {room}", { room: r.room_no }), onclick: async () => {
-              const ok = await DD.confirm({ title: t("เปลี่ยนลิงก์ห้อง {room}?", { room: r.room_no }), text: "ลิงก์เก่าจะใช้ไม่ได้ทันที ใช้เมื่อผู้เช่าย้ายออกหรือลิงก์หลุด เรื่องที่เคยแจ้งไว้ยังอยู่ครบ", ok: "เปลี่ยนลิงก์", danger: true });
+              const ok = await DD.confirm({ title: t("เปลี่ยนลิงก์ห้อง {room}?", { room: r.room_no }), text: "ลิงก์เก่าจะใช้ไม่ได้ทันที ใช้เมื่อลิงก์หลุด (ผู้เช่าคนเดิม ข้อมูลเดิมอยู่ครบ) ถ้ามีผู้เช่าใหม่ ให้ใช้ปุ่ม \"เปลี่ยนผู้เช่า\"", ok: "เปลี่ยนลิงก์", danger: true });
               if (!ok) return;
               try { await DD.api(`/api/admin/rooms/${r.id}/rotate-code`, { method: "POST" }); DD.toast(t("ออกลิงก์ใหม่ให้ห้อง {room} แล้ว", { room: r.room_no })); renderRooms(); } catch (e) { fail(e); }
             } }, DD.icon("keyRotate"))));

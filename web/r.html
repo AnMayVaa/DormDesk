@@ -7,7 +7,8 @@
 <link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
 <script src="/assets/theme.js"></script>
 <link rel="stylesheet" href="/assets/app.css">
-<title>แจ้งซ่อม — DormDesk</title>
+<link rel="stylesheet" href="/assets/features.css">
+<title>ห้องของฉัน — DormDesk</title>
 </head>
 <body>
 <a class="skip" href="#main">ข้ามไปเนื้อหาหลัก</a>
@@ -24,9 +25,19 @@
   <div id="page" class="hidden">
     <div class="page-head reveal">
       <span class="room-pill"><i data-icon="building"></i><span id="dormName" translate="no"></span></span>
-      <h1 class="mt-1">แจ้งซ่อม ห้อง <span id="roomNo" translate="no"></span></h1>
-      <p class="muted">ไม่ต้องสมัครสมาชิก ส่งแล้วจะได้ลิงก์ไว้ติดตามสถานะ</p>
+      <h1 class="mt-1">ห้อง <span id="roomNo" translate="no"></span></h1>
     </div>
+
+    <!-- v2: red fine banner + hub menu (tabs the owner switched off are not rendered) -->
+    <a class="fine-banner mt-2 hidden" id="fineBanner" href="#fines"></a>
+    <nav class="hub mt-2 hidden" id="hub" aria-label="เมนูห้อง"></nav>
+
+    <div id="v-repair">
+    <section class="card mt-2 hidden" id="homeSum" aria-labelledby="sum-t">
+      <div class="card-title"><i data-icon="home"></i><h2 id="sum-t" class="mt-0">ห้องของคุณตอนนี้</h2></div>
+      <div id="sumRows"></div>
+    </section>
+    <p class="muted mt-2" id="repairHint">ไม่ต้องสมัครสมาชิก ส่งแล้วจะได้ลิงก์ไว้ติดตามสถานะ</p>
 
     <section id="mine" class="card hidden reveal" data-i="1" aria-labelledby="mine-t">
       <div class="card-title"><i data-icon="clock"></i><h2 id="mine-t" class="mt-0">เรื่องที่คุณเคยแจ้งจากเครื่องนี้</h2></div>
@@ -104,11 +115,21 @@
       </div>
       <p class="xs muted mt-2">ใครมีลิงก์นี้จะเห็นสถานะเรื่องนี้ได้ อย่าแชร์ในกลุ่มสาธารณะ</p>
     </section>
+    </div>
+
+    <div id="v-facilities" class="hidden"></div>
+    <div id="v-booking" class="hidden"></div>
+    <div id="v-parking" class="hidden"></div>
+    <div id="v-bills" class="hidden"></div>
+    <div id="v-fines" class="hidden"></div>
+    <div id="v-pass" class="hidden"></div>
   </div>
 </main>
 <script src="/assets/i18n.js"></script>
 <script src="/assets/icons.js"></script>
 <script src="/assets/common.js"></script>
 <script src="/assets/tenant.js"></script>
+<script src="/assets/scanner.js"></script>
+<script src="/assets/tenant-hub.js"></script>
 </body>
 </html>

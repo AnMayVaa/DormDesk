@@ -2,75 +2,69 @@
 
 Rules (see docs/DormDesk_HANDOFF.md section 6):
 - dorm_id comes only from the room code, the tracking token, or the admin session (checked against admin_dorms)
-- every tenant query runs inside tenant_tx(), which does SET LOCAL app.dorm_id so PostgreSQL RLS filters rows
-- the API keeps no state on disk: sessions are signed cookies, photos live in the database
+- every tenant query runs inside tenant_tx(), which does SET LOCAL app.dorm_id (+ app.tenancy_id) so PostgreSQL RLS filters rows
+- the API keeps no state on disk: sessions live in the database, photos/slips in the object store (encrypted)
+Modules: auth (revocable sessions) · tenant (room hub) · admin_features (owner tools) · jobs (background) · storage (S3)
 """
-import io
+import logging
 import os
 import re
 import secrets
-import socket
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
-import bcrypt
 from fastapi import BackgroundTasks, FastAPI, File, Form, Query, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from itsdangerous import BadSignature, URLSafeTimedSerializer
-from PIL import Image, ImageOps, UnidentifiedImageError
-from psycopg.rows import dict_row
-from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from . import insight, notify
+from . import admin_features, auth, insight, jobs, notify, storage, tenant
+from .auth import require_admin, require_dorm_access
+from .core import (HOSTNAME, VERSION, ApiError, client_ip, features_of, log_event, mask_token, one, pool, settings,
+                   tenant_tx)
+from .images import read_images
 
 # ---------------------------------------------------------------- config
-DATABASE_URL = os.environ["DATABASE_URL"]
-SESSION_SECRET = os.environ["SESSION_SECRET"]
-COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") == "1"
-SESSION_MAX_AGE = 8 * 3600
+auth.configure(os.environ.get("COOKIE_SECURE", "1") == "1")
 ROOM_LIMIT = int(os.environ.get("ROOM_LIMIT_PER_10MIN", "5"))
-LOGIN_FAIL_LIMIT = 5
 MAX_PHOTOS = 3
 MAX_TOTAL_BYTES = 5 * 1024 * 1024
-MAX_SIDE = 1600
-HOSTNAME = socket.gethostname()
 STATUSES = ("received", "in_progress", "done", "rejected")
 PRIORITIES = ("normal", "urgent")
-Image.MAX_IMAGE_PIXELS = 40_000_000  # decompression-bomb guard
-
-pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=False,
-                      kwargs={"row_factory": dict_row, "autocommit": True})
-signer = URLSafeTimedSerializer(SESSION_SECRET, salt="dormdesk-session")
-DUMMY_HASH = bcrypt.hashpw(b"not-a-real-password", bcrypt.gensalt())
+RUN_JOBS = os.environ.get("RUN_JOBS", "1") == "1"
 
 
 @asynccontextmanager
 async def lifespan(_app):
     pool.open(wait=False)
+    if RUN_JOBS:
+        jobs.start()
     yield
+    jobs.stop()
     pool.close()
 
 
-app = FastAPI(title="DormDesk API", lifespan=lifespan,
-              docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="DormDesk API", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app.include_router(auth.router)
+app.include_router(tenant.router)
+app.include_router(admin_features.router)
 
 
 # ---------------------------------------------------------------- errors: one format everywhere
-class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str):
-        self.status, self.code, self.message = status, code, message
-
-
-def err(status, code, message):
-    return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
+def err(status, code, message, extra=None):
+    body = {"error": {"code": code, "message": message, **(extra or {})}}
+    return JSONResponse(body, status_code=status)
 
 
 @app.exception_handler(ApiError)
 async def _api_error(_req, e: ApiError):
-    return err(e.status, e.code, e.message)
+    return err(e.status, e.code, e.message, e.extra)
+
+
+@app.exception_handler(storage.StorageError)
+async def _storage_error(_req, e):
+    return err(503, "storage_unavailable", "ระบบเก็บรูปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่")
 
 
 @app.exception_handler(RequestValidationError)
@@ -86,124 +80,39 @@ async def _http_error(_req, e: StarletteHTTPException):
 
 
 @app.exception_handler(Exception)
-async def _unhandled(_req, _e: Exception):
+async def _unhandled(req, e: Exception):
+    logging.getLogger("dormdesk").error("unhandled %s %s", req.method, req.url.path, exc_info=e)   # path only, no query/body
     return err(500, "internal_error", "เกิดข้อผิดพลาดภายในระบบ")
-
-
-# ---------------------------------------------------------------- helpers
-def client_ip(request: Request) -> str:
-    return request.headers.get("x-real-ip") or (request.client.host if request.client else "-")
-
-
-@contextmanager
-def tenant_tx(dorm_id: int):
-    """Transaction scoped to one dorm. SET LOCAL disappears at COMMIT, so a pooled
-    connection never carries one dorm's setting into the next request."""
-    with pool.connection() as conn:
-        with conn.transaction():
-            conn.execute("SELECT set_config('app.dorm_id', %s, true)", (str(int(dorm_id)),))
-            yield conn
-
-
-def one(sql, params=()):
-    with pool.connection() as conn:
-        return conn.execute(sql, params).fetchone()
-
-
-def log_event(etype: str, ip: str, dorm_id: Optional[int] = None, detail: Optional[str] = None):
-    try:
-        with pool.connection() as conn:
-            conn.execute("INSERT INTO security_events (type, ip, dorm_id, detail) VALUES (%s,%s,%s,%s)",
-                         (etype, ip, dorm_id, (detail or "")[:200]))
-    except Exception:
-        pass  # logging must never break the request
-
-
-def mask_token(t: str) -> str:
-    return (t[:4] + "…") if t else ""
-
-
-# ---------------------------------------------------------------- sessions (admin)
-def require_admin(request: Request) -> int:
-    raw = request.cookies.get("dd_session")
-    if not raw:
-        raise ApiError(401, "unauthenticated", "กรุณาเข้าสู่ระบบ")
-    try:
-        data = signer.loads(raw, max_age=SESSION_MAX_AGE)
-    except BadSignature:
-        raise ApiError(401, "unauthenticated", "เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่")
-    return int(data["aid"])
-
-
-def require_dorm_access(request: Request, dorm_id: Optional[int]) -> int:
-    aid = require_admin(request)
-    if dorm_id is None:
-        raise ApiError(404, "not_found", "ไม่พบข้อมูล")
-    ok = one("SELECT 1 FROM admin_dorms WHERE admin_id=%s AND dorm_id=%s", (aid, dorm_id))
-    if not ok:
-        log_event("cross_tenant", client_ip(request), dorm_id, f"admin={aid} path={request.url.path}")
-        raise ApiError(403, "forbidden", "ไม่มีสิทธิ์เข้าถึงหอนี้")
-    return aid
 
 
 # ---------------------------------------------------------------- health
 @app.get("/api/health")
 def health():
-    db = "ok"
+    db, role = "ok", None
     try:
-        one("SELECT 1")
+        role = one("SELECT CASE WHEN pg_is_in_recovery() THEN 'standby' ELSE 'primary' END AS r, host(inet_server_addr()) AS a")
     except Exception:
         db = "down"
-    return {"status": "ok" if db == "ok" else "degraded", "db": db, "served_by": HOSTNAME}
+    st = "off" if not storage.enabled() else ("ok" if storage.ping() else "down")
+    return {"status": "ok" if db == "ok" else "degraded", "db": db, "db_host": role and role["a"], "storage": st,
+            "served_by": HOSTNAME, "version": VERSION}
 
 
-# ================================================================= TENANT (no login)
-def resolve_room(request: Request, code: str):
-    row = one("SELECT * FROM resolve_room(%s)", (code,)) if len(code) <= 64 else None
-    if not row:
-        log_event("bad_room_code", client_ip(request), None, mask_token(code))
-        raise ApiError(404, "room_not_found", "ลิงก์ห้องไม่ถูกต้องหรือถูกเปลี่ยนแล้ว กรุณาติดต่อเจ้าของหอ")
-    return row["dorm_id"], row["room_id"]
-
-
+# ================================================================= TENANT: repair requests (v1, now per tenancy)
 @app.get("/api/rooms/{code}")
 def room_info(code: str, request: Request):
-    dorm_id, room_id = resolve_room(request, code)
-    with tenant_tx(dorm_id) as c:
+    dorm_id, room_id, t = tenant.room_ctx(request, code)
+    with tenant_tx(dorm_id, t) as c:
         room = c.execute("SELECT r.room_no, d.name AS dorm_name FROM rooms r JOIN dorms d ON d.id=r.dorm_id "
                          "WHERE r.id=%s", (room_id,)).fetchone()
         cats = c.execute("SELECT c.id, c.name_th FROM categories c JOIN dorm_categories dc ON dc.category_id=c.id "
                          "WHERE dc.enabled ORDER BY c.sort").fetchall()
-    return {"dorm_name": room["dorm_name"], "room_no": room["room_no"], "categories": cats}
+        feats = features_of(settings(c, dorm_id))
+    return {"dorm_name": room["dorm_name"], "room_no": room["room_no"], "categories": cats, "features": feats}
 
 
 PHONE_RE = re.compile(r"^[0-9+\-\s]{9,20}$")
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[A-Za-z]{2,}$")
-
-
-def clean_image(raw: bytes):
-    """Accept only real JPEG/PNG/WEBP, re-encode to drop EXIF (GPS) and hidden data."""
-    try:
-        probe = Image.open(io.BytesIO(raw))
-        fmt = probe.format
-        probe.verify()
-        img = ImageOps.exif_transpose(Image.open(io.BytesIO(raw)))
-    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, SyntaxError):
-        raise ApiError(400, "bad_image", "ไฟล์ต้องเป็นรูปภาพ JPG, PNG หรือ WEBP")
-    if fmt not in ("JPEG", "PNG", "WEBP"):
-        raise ApiError(400, "bad_image", "ไฟล์ต้องเป็นรูปภาพ JPG, PNG หรือ WEBP")
-    img.thumbnail((MAX_SIDE, MAX_SIDE))
-    out = io.BytesIO()
-    if fmt == "PNG":
-        img.save(out, "PNG", optimize=True)
-        mime = "image/png"
-    elif fmt == "WEBP":
-        img.save(out, "WEBP", quality=85)
-        mime = "image/webp"
-    else:
-        img.convert("RGB").save(out, "JPEG", quality=85)
-        mime = "image/jpeg"
-    return mime, out.getvalue()
 
 
 @app.post("/api/rooms/{code}/requests", status_code=201)
@@ -217,7 +126,7 @@ async def create_request(code: str, request: Request, background: BackgroundTask
                          consent: str = Form(...),
                          photos: List[UploadFile] = File(default=[])):
     ip = client_ip(request)
-    dorm_id, room_id = resolve_room(request, code)
+    dorm_id, room_id, tenancy_id = tenant.room_ctx(request, code)
 
     if consent not in ("true", "on", "1", "yes"):
         raise ApiError(400, "consent_required", "กรุณายินยอมให้เก็บข้อมูลเพื่อใช้ติดต่อเรื่องแจ้งซ่อม")
@@ -226,23 +135,13 @@ async def create_request(code: str, request: Request, background: BackgroundTask
     email = reporter_email.strip() or None
     if email and not EMAIL_RE.match(email):
         raise ApiError(400, "bad_email", "อีเมลไม่ถูกต้อง")
-
-    photos = [p for p in photos if p and p.filename]
-    if len(photos) > MAX_PHOTOS:
-        raise ApiError(400, "too_many_photos", f"แนบรูปได้ไม่เกิน {MAX_PHOTOS} รูป")
-    cleaned, total = [], 0
-    for p in photos:
-        raw = await p.read(MAX_TOTAL_BYTES + 1)
-        total += len(raw)
-        if total > MAX_TOTAL_BYTES:
-            raise ApiError(413, "too_large", "รูปรวมกันต้องไม่เกิน 5 MB")
-        cleaned.append(clean_image(raw))
+    cleaned = await read_images(photos, MAX_PHOTOS, MAX_TOTAL_BYTES)
 
     # Idempotency-Key: the browser sends one random key per form submission. If Nginx retries the POST on the
     # other API instance (failover), or the tenant double-clicks, the same key returns the same request.
     idem = (request.headers.get("idempotency-key") or "").strip()[:64] or None
     token = secrets.token_urlsafe(16)
-    with tenant_tx(dorm_id) as c:
+    with tenant_tx(dorm_id, tenancy_id) as c:
         if idem:
             dup = c.execute("SELECT tracking_token FROM requests WHERE idem_key=%s", (idem,)).fetchone()
             if dup:
@@ -256,15 +155,20 @@ async def create_request(code: str, request: Request, background: BackgroundTask
         if not enabled:
             raise ApiError(400, "bad_category", "หมวดปัญหาไม่ถูกต้อง")
         rid = c.execute(
-            "INSERT INTO requests (dorm_id, room_id, category_id, title, detail, reporter_name, reporter_phone, "
-            "reporter_email, consent_at, tracking_token, idem_key) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,now(),%s,%s) RETURNING id",
-            (dorm_id, room_id, category_id, title.strip(), detail.strip(), reporter_name.strip(),
+            "INSERT INTO requests (dorm_id, room_id, tenancy_id, category_id, title, detail, reporter_name, reporter_phone, "
+            "reporter_email, consent_at, tracking_token, idem_key) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,now(),%s,%s) RETURNING id",
+            (dorm_id, room_id, tenancy_id, category_id, title.strip(), detail.strip(), reporter_name.strip(),
              reporter_phone.strip(), email, token, idem)).fetchone()["id"]
         c.execute("INSERT INTO request_events (dorm_id, request_id, from_status, to_status, actor) "
                   "VALUES (%s,%s,NULL,'received','tenant')", (dorm_id, rid))
         for mime, data in cleaned:
-            c.execute("INSERT INTO request_photos (dorm_id, request_id, mime, size, data) VALUES (%s,%s,%s,%s,%s)",
-                      (dorm_id, rid, mime, len(data), data))
+            if storage.enabled():     # v2: encrypted object store; v1 fallback: bytea in PostgreSQL
+                oid = storage.save_object(c, dorm_id, "request_photo", mime, data)
+                c.execute("INSERT INTO request_photos (dorm_id, request_id, mime, size, object_id) VALUES (%s,%s,%s,%s,%s)",
+                          (dorm_id, rid, mime, len(data), oid))
+            else:
+                c.execute("INSERT INTO request_photos (dorm_id, request_id, mime, size, data) VALUES (%s,%s,%s,%s,%s)",
+                          (dorm_id, rid, mime, len(data), data))
         info = c.execute("SELECT d.name AS dorm, rm.room_no, cat.name_th AS category FROM rooms rm JOIN dorms d ON d.id=rm.dorm_id "
                          "JOIN categories cat ON cat.id=%s WHERE rm.id=%s", (category_id, room_id)).fetchone()
     if notify.enabled():
@@ -291,13 +195,13 @@ def resolve_tracking(request: Request, token: str):
     if not row:
         log_event("bad_tracking_token", client_ip(request), None, mask_token(token))
         raise ApiError(404, "not_found", "ไม่พบคำขอนี้")
-    return row["dorm_id"], row["request_id"]
+    return row["dorm_id"], row["request_id"], row["tenancy_id"]
 
 
 @app.get("/api/track/{token}")
 def track(token: str, request: Request):
-    dorm_id, rid = resolve_tracking(request, token)
-    with tenant_tx(dorm_id) as c:
+    dorm_id, rid, t = resolve_tracking(request, token)
+    with tenant_tx(dorm_id, t) as c:
         r = c.execute(
             "SELECT q.title, q.detail, q.status, q.priority, q.created_at, q.updated_at, q.done_at, "
             "c.name_th AS category, rm.room_no, d.name AS dorm_name "
@@ -311,62 +215,28 @@ def track(token: str, request: Request):
 
 
 def photo_response(c, request_id: int, photo_id: int):
-    p = c.execute("SELECT mime, data FROM request_photos WHERE id=%s AND request_id=%s",
+    p = c.execute("SELECT mime, data, object_id FROM request_photos WHERE id=%s AND request_id=%s",
                   (photo_id, request_id)).fetchone()
     if not p:
         raise ApiError(404, "not_found", "ไม่พบรูป")
-    return Response(bytes(p["data"]), media_type=p["mime"],
-                    headers={"Cache-Control": "private, max-age=3600"})
+    if p["object_id"]:
+        try:
+            mime, data = storage.load_object(c, p["object_id"])
+        except LookupError:
+            raise ApiError(404, "not_found", "ไม่พบรูป")
+    else:
+        mime, data = p["mime"], bytes(p["data"])
+    return Response(data, media_type=mime, headers={"Cache-Control": "private, max-age=3600"})
 
 
 @app.get("/api/track/{token}/photos/{photo_id}")
 def track_photo(token: str, photo_id: int, request: Request):
-    dorm_id, rid = resolve_tracking(request, token)
-    with tenant_tx(dorm_id) as c:
+    dorm_id, rid, t = resolve_tracking(request, token)
+    with tenant_tx(dorm_id, t) as c:
         return photo_response(c, rid, photo_id)
 
 
-# ================================================================= AUTH
-class LoginIn(BaseModel):
-    email: str = Field(..., max_length=254)
-    password: str = Field(..., max_length=200)
-
-
-@app.post("/api/auth/login")
-def login(body: LoginIn, request: Request, response: Response):
-    ip = client_ip(request)
-    email = body.email.strip().lower()
-    fails = one("SELECT count(*) AS n FROM security_events WHERE type='login_failed' AND detail=%s "
-                "AND occurred_at > now() - interval '10 minutes'", (email,))["n"]
-    if fails >= LOGIN_FAIL_LIMIT:
-        log_event("rate_limited", ip, None, "login")
-        raise ApiError(429, "rate_limited", "เข้าสู่ระบบผิดหลายครั้ง กรุณารอ 10 นาที")
-    admin = one("SELECT id, display_name, password_hash FROM admins WHERE email=%s", (email,))
-    hashed = admin["password_hash"].encode() if admin else DUMMY_HASH  # same timing either way
-    if not bcrypt.checkpw(body.password.encode(), hashed) or not admin:
-        log_event("login_failed", ip, None, email)
-        raise ApiError(401, "bad_credentials", "อีเมลหรือรหัสผ่านไม่ถูกต้อง")
-    response.set_cookie("dd_session", signer.dumps({"aid": admin["id"]}), max_age=SESSION_MAX_AGE,
-                        httponly=True, secure=COOKIE_SECURE, samesite="strict", path="/")
-    return {"display_name": admin["display_name"]}
-
-
-@app.post("/api/auth/logout")
-def logout(response: Response):
-    response.delete_cookie("dd_session", path="/")
-    return {"ok": True}
-
-
-@app.get("/api/auth/me")
-def me(request: Request):
-    aid = require_admin(request)
-    a = one("SELECT email, display_name FROM admins WHERE id=%s", (aid,))
-    if not a:
-        raise ApiError(401, "unauthenticated", "กรุณาเข้าสู่ระบบ")
-    return a
-
-
-# ================================================================= ADMIN
+# ================================================================= ADMIN (repair requests, rooms, categories)
 @app.get("/api/admin/dorms")
 def admin_dorms(request: Request):
     aid = require_admin(request)
@@ -383,9 +253,10 @@ def admin_requests(dorm_id: int, request: Request,
     if status and status not in STATUSES or priority and priority not in PRIORITIES:
         raise ApiError(400, "bad_filter", "ตัวกรองไม่ถูกต้อง")
     sql = ("SELECT q.id, q.title, q.status, q.priority, q.created_at, q.updated_at, q.reporter_name, "
-           "c.name_th AS category, rm.room_no, "
+           "c.name_th AS category, rm.room_no, (t.ended_at IS NOT NULL) AS prev_tenant, "
            "(SELECT count(*) FROM request_photos p WHERE p.request_id=q.id) AS photo_count "
-           "FROM requests q JOIN categories c ON c.id=q.category_id JOIN rooms rm ON rm.id=q.room_id WHERE true")
+           "FROM requests q JOIN categories c ON c.id=q.category_id JOIN rooms rm ON rm.id=q.room_id "
+           "JOIN tenancies t ON t.id=q.tenancy_id WHERE true")
     params = []
     if status:
         sql += " AND q.status=%s"; params.append(status)
@@ -412,10 +283,11 @@ def request_scope(request: Request, rid: int) -> int:
 def admin_request_detail(rid: int, request: Request):
     dorm_id = request_scope(request, rid)
     with tenant_tx(dorm_id) as c:
-        r = c.execute("SELECT q.*, c.name_th AS category, rm.room_no FROM requests q "
-                      "JOIN categories c ON c.id=q.category_id JOIN rooms rm ON rm.id=q.room_id "
+        r = c.execute("SELECT q.*, c.name_th AS category, rm.room_no, (t.ended_at IS NOT NULL) AS prev_tenant FROM requests q "
+                      "JOIN categories c ON c.id=q.category_id JOIN rooms rm ON rm.id=q.room_id JOIN tenancies t ON t.id=q.tenancy_id "
                       "WHERE q.id=%s", (rid,)).fetchone()
         r.pop("tracking_token", None)
+        r.pop("idem_key", None)
         r["events"] = c.execute("SELECT from_status, to_status, note, actor, created_at FROM request_events "
                                 "WHERE request_id=%s ORDER BY created_at, id", (rid,)).fetchall()
         r["photos"] = [p["id"] for p in c.execute("SELECT id FROM request_photos WHERE request_id=%s ORDER BY id",
@@ -484,7 +356,7 @@ def dashboard(dorm_id: int, request: Request):
             "SELECT q.id, q.title, rm.room_no, q.status, q.priority, q.created_at FROM requests q "
             "JOIN rooms rm ON rm.id=q.room_id WHERE q.status IN ('received','in_progress') "
             "AND q.created_at < now() - interval '48 hours' ORDER BY q.created_at LIMIT 10").fetchall()
-        repeat_rooms = c.execute(
+        repeat_rooms = c.execute(   # per ROOM across tenancies on purpose: a room that keeps breaking needs new equipment
             "SELECT rm.room_no, c.name_th AS category, count(*) AS n FROM requests q "
             "JOIN rooms rm ON rm.id=q.room_id JOIN categories c ON c.id=q.category_id "
             "WHERE q.created_at > now() - interval '90 days' GROUP BY rm.room_no, c.name_th "
@@ -501,9 +373,10 @@ def list_rooms(dorm_id: int, request: Request):
     require_dorm_access(request, dorm_id)
     with tenant_tx(dorm_id) as c:
         return c.execute(
-            "SELECT r.id, r.room_no, r.room_code, r.code_rotated_at, "
+            "SELECT r.id, r.room_no, r.room_code, r.code_rotated_at, r.rent, t.started_at AS tenancy_started, "
+            "(SELECT count(*) FROM tenancies p WHERE p.room_id=r.id AND p.ended_at IS NOT NULL) AS previous_tenancies, "
             "(SELECT count(*) FROM requests q WHERE q.room_id=r.id AND q.status IN ('received','in_progress')) AS open "
-            "FROM rooms r ORDER BY r.room_no").fetchall()
+            "FROM rooms r LEFT JOIN tenancies t ON t.room_id=r.id AND t.ended_at IS NULL ORDER BY r.room_no").fetchall()
 
 
 class RoomIn(BaseModel):
@@ -516,13 +389,15 @@ def create_room(dorm_id: int, body: RoomIn, request: Request):
     with tenant_tx(dorm_id) as c:
         if c.execute("SELECT 1 FROM rooms WHERE room_no=%s", (body.room_no.strip(),)).fetchone():
             raise ApiError(409, "duplicate", "มีห้องนี้อยู่แล้ว")
-        return c.execute("INSERT INTO rooms (dorm_id, room_no, room_code) VALUES (%s,%s,%s) "
-                         "RETURNING id, room_no, room_code",
-                         (dorm_id, body.room_no.strip(), secrets.token_urlsafe(16))).fetchone()
+        r = c.execute("INSERT INTO rooms (dorm_id, room_no, room_code) VALUES (%s,%s,%s) "
+                      "RETURNING id, room_no, room_code", (dorm_id, body.room_no.strip(), secrets.token_urlsafe(16))).fetchone()
+        c.execute("INSERT INTO tenancies (dorm_id, room_id) VALUES (%s,%s)", (dorm_id, r["id"]))
+        return r
 
 
 @app.post("/api/admin/rooms/{room_id}/rotate-code")
 def rotate_code(room_id: int, request: Request):
+    """Link leaked, same tenant: new link, tenancy (and the tenant's data) unchanged. For a new tenant use new-tenancy."""
     require_admin(request)
     dorm_id = one("SELECT room_dorm(%s) AS d", (room_id,))["d"]
     require_dorm_access(request, dorm_id)

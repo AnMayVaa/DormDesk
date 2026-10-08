@@ -7,6 +7,7 @@
 <link rel="preload" href="/assets/fonts/prompt-400-thai.woff2" as="font" type="font/woff2" crossorigin>
 <script src="/assets/theme.js"></script>
 <link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/features.css">
 <title>เจ้าของหอ — DormDesk</title>
 </head>
 <body>
@@ -68,6 +69,10 @@
       <button class="tab" role="tab" data-tab="ai" aria-selected="false"><i data-icon="sparkles"></i>ถาม AI</button>
       <button class="tab" role="tab" data-tab="rooms" aria-selected="false"><i data-icon="door"></i>ห้อง & ลิงก์</button>
       <button class="tab" role="tab" data-tab="cats" aria-selected="false"><i data-icon="tag"></i>หมวดปัญหา</button>
+      <button class="tab hidden" role="tab" data-tab="billing" data-feature="bills fines" aria-selected="false"><i data-icon="receipt"></i>บิล & ค่าปรับ <span class="count red hidden" id="billCount"></span></button>
+      <button class="tab hidden" role="tab" data-tab="parking" data-feature="parking" aria-selected="false"><i data-icon="car"></i>ที่จอดรถ <span class="count hidden" id="parkCount"></span></button>
+      <button class="tab hidden" role="tab" data-tab="spaces" data-feature="fitness pool spaces" aria-selected="false"><i data-icon="calendar"></i>ส่วนกลาง</button>
+      <button class="tab" role="tab" data-tab="settings" aria-selected="false"><i data-icon="sliders"></i>ตั้งค่าฟีเจอร์</button>
     </div>
     <div id="panel" class="mt-2" role="tabpanel"></div>
   </div>
@@ -75,6 +80,7 @@
 <script src="/assets/i18n.js"></script>
 <script src="/assets/icons.js"></script>
 <script src="/assets/common.js"></script>
+<script src="/assets/admin-features.js"></script>
 <script src="/assets/admin.js"></script>
 </body>
 </html>

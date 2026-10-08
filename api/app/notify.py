@@ -89,3 +89,11 @@ def owner_new_request(to, title, room_no, dorm, category, urgent, on_error=None)
     text = f"เรื่องใหม่จากห้อง {room_no} ({dorm}) หมวด {category}: {title}\nเปิดระบบ: {link}\n"
     lines = [f"ห้อง <b>{_esc(room_no)}</b> · {_esc(dorm)} · หมวด {_esc(category)}", f"หัวข้อ: <b>{_esc(title)}</b>"]
     _send(to, subject, text, _html("มีเรื่องแจ้งซ่อมใหม่", lines, link, "เปิด DormDesk"), on_error)
+
+
+def generic(to, subject, heading, lines, link_path, button="เปิด DormDesk", on_error=None):
+    """Bills, slips, fines, parking, messages. `lines` are plain text (escaped here). `link_path` is
+    relative to PUBLIC_BASE_URL (e.g. /r/<code>#bills) — the room link itself is the tenant's login."""
+    link = PUBLIC_BASE_URL + link_path
+    text = "\n".join(lines) + f"\n\n{link}\n"
+    _send(to, f"[DormDesk] {subject}", text, _html(_esc(heading), [_esc(l) for l in lines], link, button), on_error)

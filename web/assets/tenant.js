@@ -22,7 +22,7 @@
       const room = await DD.api("/api/rooms/" + encodeURIComponent(code));
       $("dormName").textContent = room.dorm_name;
       $("roomNo").textContent = room.room_no;
-      document.title = t("แจ้งซ่อม ห้อง {n} — DormDesk", { n: room.room_no });
+      document.title = t("ห้อง {n} — DormDesk", { n: room.room_no });
       $("cats").replaceChildren(...room.categories.map((c) => el("div", { class: "tile" },
         el("input", { type: "radio", name: "category_id", value: c.id, id: "cat-" + c.id }),
         el("label", { for: "cat-" + c.id }, DD.icon(DD_CAT_ICON[c.id] || "dots"), c.name_th))));
@@ -30,6 +30,7 @@
       if (saved) { $("name").value = saved.name || ""; $("phone").value = saved.phone || ""; $("remember").checked = true; }
       $("loading").remove();
       $("page").classList.remove("hidden");
+      document.dispatchEvent(new CustomEvent("dd:room", { detail: room }));   // tenant-hub.js builds the menu
       loadMine();
     } catch (e) {
       $("loading").remove();

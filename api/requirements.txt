@@ -6,3 +6,5 @@ bcrypt==4.2.*
 itsdangerous==2.2.*
 python-multipart==0.0.*
 pillow==11.*
+cryptography==46.*
+segno==1.6.*

@@ -1,0 +1,170 @@
+/* DormDesk — styles for the NEW features (common facilities, parking, bills, fines).
+   Append this file to web/assets/app.css (or load it after app.css). It only uses the tokens
+   already defined in app.css (--sky, --card, --line, --st-*, --danger …), so light + dark themes work unchanged.
+   Every class here is new: none of them exists in app.css today. */
+
+/* ---------- small additions to existing components ---------- */
+.btn.ok { --b-bg: var(--ok-bg); --b-ink: var(--ok); }
+.alert.warn { background: var(--st-progress-bg); color: var(--st-progress); }
+.tab .count.red { background: var(--danger-bg); color: var(--danger); }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- tenant: hub navigation under the room header ---------- */
+.hub { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .25rem; padding: .3rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.hub a { position: relative; display: flex; flex-direction: column; align-items: center; gap: .15rem; padding: .45rem .2rem;
+  border-radius: 10px; font-size: .78rem; font-weight: 500; color: var(--ink-2); text-decoration: none; }
+.hub a .icon { width: 22px; height: 22px; }
+.hub a[aria-current="page"] { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: var(--sh-1); }
+.hub a[aria-current="page"] .icon { color: var(--link); }
+.hub .dot { position: absolute; top: 6px; right: calc(50% - 18px); width: 9px; height: 9px; border-radius: 50%;
+  background: var(--danger); border: 2px solid var(--surface); }
+
+/* ---------- tenant: red fine banner on the room page ---------- */
+.fine-banner { display: flex; gap: .7rem; align-items: center; padding: .8rem .95rem; border-radius: 14px; text-decoration: none;
+  background: var(--danger-bg); color: var(--danger); border: 1.5px solid color-mix(in srgb, var(--danger) 45%, transparent); }
+.fine-banner .icon { width: 22px; height: 22px; }
+.fine-banner strong { display: block; }
+
+/* ---------- facilities: rows + occupancy meter ---------- */
+.facility { display: grid; grid-template-columns: 44px 1fr auto; gap: .8rem; align-items: center; padding: .85rem 0; border-bottom: 1px solid var(--line); }
+.facility:last-child { border-bottom: 0; }
+.fac-icon { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--st-received-bg); color: var(--st-received); }
+.meter { height: 8px; border-radius: 6px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; margin-top: .35rem; }
+.meter span { display: block; height: 100%; background: var(--sky); border-radius: 6px; }
+.meter.busy span { background: var(--pink); }
+
+/* ---------- check-in pass shown to the staff desk ---------- */
+.pass { border-radius: 22px; padding: 1.4rem; text-align: center; color: var(--on-sky); border: 1px solid var(--line); box-shadow: var(--sh-2);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--sky) 75%, var(--card)), color-mix(in srgb, var(--green) 40%, var(--card))); }
+.pass .big { font-size: 3.2rem; font-weight: 700; line-height: 1; letter-spacing: -.02em; }
+.pass .clock { font-size: 2rem; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.pass .live { display: inline-flex; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 600; padding: .2rem .7rem; border-radius: 999px; background: rgba(255,255,255,.55); }
+.pass .live i { width: 8px; height: 8px; border-radius: 50%; background: #1d6630; display: inline-block; animation: dd-pulse 1.2s ease-in-out infinite; }
+@keyframes dd-pulse { 50% { opacity: .25; } }
+.kv { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin-top: 1rem; text-align: left; }
+.kv div { background: rgba(255,255,255,.55); border-radius: 12px; padding: .55rem .75rem; }
+.kv b { display: block; font-size: 1.05rem; }
+
+/* ---------- booking: day strip + time slots + weekly quota ---------- */
+.days { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: .3rem; }
+.day { display: flex; flex-direction: column; align-items: center; padding: .4rem 0; border-radius: 12px; border: 1.5px solid var(--line);
+  background: var(--surface); font: 400 .75rem var(--font); color: var(--muted); cursor: pointer; }
+.day b { font-size: 1.05rem; color: var(--ink); }
+.day[aria-pressed="true"] { border-color: var(--focus); background: var(--st-received-bg); color: var(--st-received); }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .45rem; }
+.slot { min-height: 52px; border-radius: var(--r-sm); border: 1.5px solid var(--line); background: var(--card); font: 500 .85rem var(--font);
+  color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+.slot small { font-size: .7rem; color: var(--muted); font-weight: 400; }
+.slot:disabled, .slot.taken { background: var(--surface); color: var(--muted); text-decoration: line-through; cursor: not-allowed; }
+.slot.mine { border-color: var(--focus); background: var(--st-received-bg); color: var(--st-received); }
+.slot[aria-pressed="true"] { border-color: var(--focus); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sky) 40%, transparent); }
+.quota { display: flex; gap: .35rem; }
+.quota i { width: 28px; height: 8px; border-radius: 6px; background: var(--sky); display: block; }
+.quota i.off { background: var(--line-strong); }
+
+/* ---------- bills ---------- */
+.bill-line { display: flex; justify-content: space-between; gap: 1rem; padding: .55rem 0; border-bottom: 1px dashed var(--line); font-size: .95rem; }
+.bill-total { display: flex; justify-content: space-between; align-items: baseline; padding-top: .75rem; font-weight: 700; font-size: 1.3rem; }
+.qr-box { width: 168px; height: 168px; margin: 0 auto; border-radius: 14px; border: 1px solid var(--line); display: grid; place-items: center;
+  color: #1f2733; font-size: .78rem; text-align: center; padding: .75rem; background-color: #fff;
+  background-image: repeating-linear-gradient(0deg, #1f273310 0 6px, transparent 6px 12px), repeating-linear-gradient(90deg, #1f273310 0 6px, transparent 6px 12px); }
+
+/* ---------- message thread (parking return / cancellation, fines) ---------- */
+.thread { display: grid; gap: .6rem; }
+.msg { max-width: 86%; padding: .6rem .8rem; border-radius: 14px; font-size: .9rem; }
+.msg .who { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .15rem; }
+.msg.owner { background: var(--surface); border: 1px solid var(--line); justify-self: start; border-bottom-left-radius: 4px; }
+.msg.me { background: var(--st-received-bg); color: var(--st-received); justify-self: end; border-bottom-right-radius: 4px; }
+.msg.me .who { color: var(--st-received); }
+.composer { display: flex; gap: .5rem; margin-top: .75rem; }
+.composer .input { flex: 1; }
+
+/* ---------- 15-day countdown for a parking cancellation (--p = share elapsed, 0–100%) ---------- */
+.countdown { display: flex; gap: .9rem; align-items: center; }
+.countdown .ring { --p: 40%; width: 64px; height: 64px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 700;
+  background: conic-gradient(var(--st-progress) 0 var(--p), var(--line) var(--p) 100%); }
+.countdown .ring span { width: 50px; height: 50px; border-radius: 50%; background: var(--card); display: grid; place-items: center; font-size: 1.05rem; line-height: 1; text-align: center; }
+.countdown .ring small { display: block; font-size: .6rem; font-weight: 500; color: var(--muted); }
+
+/* ---------- owner: dashboard split, tables, settings, presets, progress steps ---------- */
+.section-split { display: flex; align-items: center; gap: .75rem; margin: 2rem 0 1rem; }
+.section-split::after { content: ""; flex: 1; height: 1px; background: var(--line-strong); }
+.section-split .tag { font-size: .75rem; font-weight: 600; padding: .2rem .6rem; border-radius: 999px; background: var(--st-received-bg); color: var(--st-received); }
+.tbl-wrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.tbl th { text-align: left; font-weight: 500; color: var(--muted); font-size: .8rem; padding: .5rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tbl td { padding: .65rem .6rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: 0; }
+.set-row { display: flex; align-items: center; gap: 1rem; padding: .85rem 0; border-bottom: 1px solid var(--line); }
+.set-row:last-child { border-bottom: 0; }
+.preset { display: inline-flex; align-items: center; gap: .35rem; padding: .35rem .75rem; border-radius: 999px; border: 1px solid var(--line-strong);
+  background: var(--card); font: 400 .85rem var(--font); color: var(--ink-2); cursor: pointer; }
+.preset[aria-pressed="true"] { background: var(--st-received-bg); border-color: var(--focus); color: var(--st-received); }
+.inline-dialog { background: var(--card); border-radius: var(--r-md); box-shadow: var(--sh-2); padding: 1.4rem; border: 1px solid var(--line); }
+.steps { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; font-size: .78rem; }
+.steps span { padding: .15rem .55rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--muted); }
+.steps span.on { background: var(--st-progress-bg); border-color: transparent; color: var(--st-progress); font-weight: 600; }
+.steps span.done { background: var(--st-done-bg); border-color: transparent; color: var(--st-done); }
+.two-col { display: grid; grid-template-columns: 1.3fr .7fr; gap: 1rem; align-items: start; }
+@media (max-width: 960px) { .two-col { grid-template-columns: 1fr; } }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+@media (max-width: 960px) { .grid-3 { grid-template-columns: 1fr; } }
+a.tab { text-decoration: none; }
+
+/* ======================================================================== additions for the live site (v2)
+   (mockups used style="" for layout; the CSP forbids inline styles, so these are classes) */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: .75rem; }
+@media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .75rem; }
+.big-num { font-size: 1.6rem; font-weight: 700; line-height: 1.1; }
+.amount-lg { font-size: 2rem; font-weight: 700; color: var(--danger); }
+.fine-card { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.reason-box { background: var(--surface); border-radius: var(--r-sm); padding: .7rem .85rem; white-space: pre-wrap; }
+.meter.lg { height: 12px; }
+.input.w-80 { width: 80px; } .input.w-110 { width: 110px; } .input.w-150 { width: 150px; }
+.tbl .input { min-height: 38px; padding: .35rem .55rem; }
+.tbl td.num, .tbl th.num { text-align: right; }
+.thumb.ph { display: grid; place-items: center; color: var(--muted); }
+.hub-section { margin-top: 1rem; }
+.qr-img { display: block; width: 200px; height: 200px; margin: 0 auto; border-radius: 14px; border: 1px solid var(--line); background: #fff; padding: 6px; }
+.pass.expired { background: var(--surface); color: var(--muted); filter: grayscale(1); }
+.pass.expired .live i { animation: none; background: var(--muted); }
+.pass .facility-name { margin: .75rem 0 .25rem; font-weight: 600; }
+.guest-pass { padding: 1rem; } .guest-pass .plate { font-size: 1.6rem; font-weight: 700; }
+.receipt { border: 1px solid var(--line); border-radius: 12px; padding: 1rem; background: var(--surface); }
+.receipt .bill-total { font-size: 1.1rem; }
+.history-row { display: flex; gap: .75rem; align-items: center; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+.history-row:last-child { border-bottom: 0; }
+.list-row.c3 { grid-template-columns: 3.4rem 1fr auto; }
+.list-row.c4 { grid-template-columns: 2rem 3.4rem 1fr auto; }
+.list-row.c2 { grid-template-columns: 3.4rem 1fr; }
+.kpi-icon.inline { margin: 0; }
+.day-head { font-weight: 600; margin: 1rem 0 .4rem; }
+.link-out { word-break: break-all; font-family: var(--mono); font-size: .85rem; background: var(--surface); border-radius: 10px; padding: .6rem .8rem; }
+.inline-dialog.narrow { max-width: 560px; }
+.ok-text { color: var(--ok); } .danger-text { color: var(--danger); }
+
+/* ---------- QR scanner (camera inside the page) ---------- */
+.scanner { position: fixed; inset: 0; z-index: var(--z-modal); background: #0b0f14; color: #e7ecf3; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 1rem; gap: 1rem; }
+.scanner .frame { position: relative; width: min(80vw, 340px); aspect-ratio: 1; border-radius: 22px; overflow: hidden; border: 3px solid var(--sky); }
+.scanner video { width: 100%; height: 100%; object-fit: cover; }
+.scanner .frame::after { content: ""; position: absolute; left: 8%; right: 8%; top: 50%; height: 2px; background: var(--sky);
+  box-shadow: 0 0 12px var(--sky); animation: dd-scan 2.2s ease-in-out infinite; }
+@keyframes dd-scan { 0%, 100% { top: 12%; } 50% { top: 88%; } }
+@media (prefers-reduced-motion: reduce) { .scanner .frame::after { animation: none; } .pass .live i { animation: none; } }
+.scanner p { margin: 0; max-width: 340px; text-align: center; color: #c3ccd8; }
+.scanner .row { justify-content: center; }
+.scanner .btn.ghost { --b-ink: #e7ecf3; }
+
+/* ---------- print: only the chosen receipt / QR card ---------- */
+@media print {
+  body.print-one * { visibility: hidden !important; }
+  body.print-one .printing, body.print-one .printing * { visibility: visible !important; }
+  body.print-one .printing { position: absolute; left: 0; top: 0; width: 100%; border: 0; }
+  .topbar, .hub, .toasts { display: none !important; }
+}
+.left-list { text-align: left; display: inline-block; margin: 0 auto; }
+.meter { display: block; }
+.select.w-150 { width: 150px; } .select.w-auto { width: auto; }

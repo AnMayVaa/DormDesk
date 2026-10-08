@@ -1,4 +1,5 @@
 -- DormDesk schema (run as postgres on database dormdesk)
+SET client_min_messages = warning;
 -- Every customer table carries dorm_id (multi-tenant rule, HANDOFF 6.1)
 
 CREATE TABLE IF NOT EXISTS dorms (
