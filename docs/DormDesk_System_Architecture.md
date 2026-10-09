@@ -349,7 +349,7 @@ endpoint หลักของ v1 ด้านล่าง · รายการ
 ### 12.9 การทำงานต่อเมื่อเครื่องล่ม (High Availability)
 
 **ชั้น API**
-- Nginx มีรายชื่อ API ทุกเครื่อง (สร้างจาก `topology.env`) · คำขอที่ล้มเหลวถูกส่งซ้ำไปอีกเครื่อง **รวมถึง POST/PATCH/PUT** (`proxy_next_upstream ... non_idempotent`) — ปลอดภัยเพราะทุกการสร้างมี `Idempotency-Key` ที่บันทึกใน transaction เดียวกับข้อมูล (`idem_keys`) ส่งซ้ำได้ผลเดิม
+- Nginx มีรายชื่อ API ทุกเครื่อง (สร้างจาก `topology.env`) · คำขอที่ล้มเหลวถูกส่งซ้ำไปอีกเครื่อง **รวมถึง POST/PATCH/PUT** (`proxy_next_upstream ... non_idempotent`) — ปลอดภัยเพราะทุกคำขอเขียนจากหน้าเว็บมี `Idempotency-Key`: การสร้างบันทึก key ใน transaction เดียวกับข้อมูล (`idem_keys`) และตั้งแต่ v2.1 middleware (`api/app/idempotency.py`, ตาราง `http_idem` ในฐานข้อมูลกลาง) จดคำตอบของทุก POST/PATCH/PUT — key เดิมส่งซ้ำไม่ว่าไป API เครื่องไหนก็ได้คำตอบเดิม ไม่บันทึกซ้ำ · หน้าเว็บส่งซ้ำเองด้วย key เดิมเมื่อได้ 502/503/504 · API รัน 1 process ต่อเครื่อง (`--workers 1`) เพราะ supervisor ของ uvicorn ฆ่า worker บน CPU 0.5 vCPU — D19
 - **watchdog บน web-01 = active health check** (Nginx ฟรีไม่มี): ทุก 5 วินาทีเรียก `/api/health` ของทุก API ผ่าน tunnel · พลาด 2 ครั้งติด → ใส่ `down` ใน upstream (ไม่มีคำขอไปรอเครื่องที่ตาย) · กลับมาตอบ → ใส่กลับ · ถ้าไม่มี API ไหนตอบเลย ~60 วินาที → ต่อ tunnel ใหม่ · `proxy_read_timeout 15s`
 - ทำได้เพราะ API **ไม่เก็บสถานะในเครื่อง**: session อยู่ในฐานข้อมูล · ไฟล์อยู่ใน store-01 · งานเบื้องหลังใช้ advisory lock (เครื่องไหนก็ทำแทนกันได้)
 

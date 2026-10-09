@@ -168,3 +168,37 @@ a.tab { text-decoration: none; }
 .left-list { text-align: left; display: inline-block; margin: 0 auto; }
 .meter { display: block; }
 .select.w-150 { width: 150px; } .select.w-auto { width: auto; }
+
+/* ------------------------------------------------------------------ v2.1: responsive fixes for the feature screens */
+/* a form that opens inside a facility row (tenant e-mail) spans the whole row instead of the narrow middle column */
+.facility > .wide { grid-column: 1 / -1; }
+.facility > * { min-width: 0; }
+/* settings rows: label on the left, controls on the right; controls drop under the label when there is no room */
+.set-row { flex-wrap: wrap; gap: .6rem 1rem; }
+.set-row > .spacer { flex: 1 1 12rem; }
+.set-fields, .set-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; }
+.set-actions { margin-left: auto; }
+.pair { display: inline-flex; align-items: center; gap: .4rem; }
+/* iPad portrait: rules in two columns instead of one long list */
+@media (max-width: 960px) { .grid-3 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 640px) {
+  .grid-3 { grid-template-columns: 1fr; }
+  .set-row > .spacer { flex-basis: 8rem; }
+  .set-actions { margin-left: 0; width: 100%; }
+  .set-actions > .btn { flex: 1 1 0; }
+  /* tables become one small card per row; each value shows its column name (td[data-label]) */
+  .tbl.cards-sm thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tbl.cards-sm, .tbl.cards-sm tbody { display: block; }
+  .tbl.cards-sm tr { display: grid; grid-template-columns: repeat(auto-fill, minmax(6.2rem, 1fr)); gap: .55rem .75rem; padding: .85rem 0; border-bottom: 1px solid var(--line); }
+  .tbl.cards-sm tr:last-child { border-bottom: 0; }
+  .tbl.cards-sm td { display: flex; flex-direction: column; align-items: flex-start; gap: .2rem; padding: 0; border: 0; min-width: 0; }
+  .tbl.cards-sm td::before { content: attr(data-label); font-size: .72rem; color: var(--muted); }
+  .tbl.cards-sm td[data-label=""]::before { display: none; }
+  .tbl.cards-sm td.room-no { grid-column: 1 / -1; font-size: 1.15rem; }
+  .tbl.cards-sm td.room-no::before { display: none; }
+  .tbl.cards-sm td.num { text-align: left; }
+  .tbl.cards-sm td[data-label=""] { justify-content: flex-end; }
+  .tbl.cards-sm td[data-label=""]:has(> .row) { grid-column: 1 / -1; }
+  .tbl.cards-sm td[data-label=""] > .row { flex-wrap: wrap; width: 100%; }
+  .tbl.cards-sm .input, .tbl.cards-sm .select { width: 100%; }
+}

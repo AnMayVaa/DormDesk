@@ -36,6 +36,7 @@ GRANT SELECT, INSERT, UPDATE ON tenancies, dorm_settings, facilities, checkins, 
                                 api_heartbeats, job_state                                    TO dormdesk_app;
 GRANT SELECT, INSERT         ON bill_edits, fine_photos, messages                            TO dormdesk_app;
 GRANT SELECT                 ON ops_meta                                                     TO dormdesk_app;
+GRANT SELECT, INSERT, UPDATE ON http_idem                                                    TO dormdesk_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO dormdesk_app;
 
 -- ---------- Row-Level Security: every tenant table is filtered by dorm (app.dorm_id) ----------
@@ -113,6 +114,13 @@ BEGIN
     WHEN 'tenancy'  THEN (SELECT dorm_id FROM tenancies        WHERE id = p_id)
     ELSE NULL END;
 END $$;
+
+-- exactly-once bookkeeping older than a day is useless; the app may not DELETE, so a definer function does it
+CREATE OR REPLACE FUNCTION purge_http_idem() RETURNS int
+LANGUAGE sql SECURITY DEFINER SET search_path = public, pg_catalog AS $$
+  WITH d AS (DELETE FROM http_idem WHERE created_at < now() - interval '24 hours' RETURNING 1) SELECT count(*)::int FROM d $$;
+REVOKE ALL ON FUNCTION purge_http_idem() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION purge_http_idem() TO dormdesk_app;
 
 -- ops: replication health for alerts (works on primary and on standby, exposes numbers only)
 CREATE OR REPLACE FUNCTION ops_replication()

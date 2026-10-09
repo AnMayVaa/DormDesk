@@ -12,6 +12,7 @@ infra/tls/*.srl
 infra/tls/*.ext
 !infra/tls/make-cert.sh
 evidence/private/
+evidence/ui-audit/
 backups/
 *.dump
 

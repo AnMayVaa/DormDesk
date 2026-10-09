@@ -41,7 +41,7 @@ case "${1:-start}" in
             case " $down " in *" $port "*) st=" down" ;; *) st="" ;; esac
             echo "    server 127.0.0.1:$port max_fails=2 fail_timeout=10s$st;   # $ip"
           done < "$CONF"
-          echo "    keepalive 16;"; echo "}"; } > $UP.new
+          echo "    keepalive 16;"; echo "    keepalive_timeout 30s;   # < uvicorn keep-alive (75 s)"; echo "}"; } > $UP.new
         if ! cmp -s $UP.new $UP; then
           mv $UP.new $UP && nginx -s reload 2>/dev/null
           echo "$(date -u +%FT%TZ) watchdog: upstream rewritten, down=[${down# }]"

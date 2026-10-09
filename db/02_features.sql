@@ -407,3 +407,17 @@ CREATE TABLE IF NOT EXISTS ops_meta (            -- written by deploy scripts (e
     value       text NOT NULL,
     updated_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- ============================================================ exactly-once writes (api/app/idempotency.py)
+-- A POST/PATCH/PUT that carries an Idempotency-Key runs once; a retry gets the stored reply. No tenant data
+-- columns: scope = sha256(method, path, session), kept 24 h and purged by purge_http_idem().
+CREATE TABLE IF NOT EXISTS http_idem (
+    scope       text NOT NULL,
+    key         text NOT NULL,
+    status      int,                      -- NULL running · -1 failed (may run again) · else stored HTTP status
+    ctype       text,
+    body        bytea,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (scope, key)
+);
+CREATE INDEX IF NOT EXISTS ix_http_idem_created ON http_idem (created_at);

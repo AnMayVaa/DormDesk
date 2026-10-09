@@ -370,6 +370,12 @@
     "หอนี้ไม่ได้เปิดใช้ฟีเจอร์นี้": "This dorm has not switched on this feature", "คำขอนี้กำลังดำเนินการ กรุณารอสักครู่": "This request is being processed, please wait", "ไม่พบเซสชัน": "Session not found",
     "ข้อความต้องยาว 1–1000 ตัวอักษร": "Messages must be 1–1000 characters", "ระบบเก็บรูปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่": "Image storage is temporarily unavailable, please try again", "ไม่พบข้อมูล": "Not found",
     "ไม่พบรูป": "Image not found",
+    // ---------------------------------------------------------------- in-page viewer, retries, small-screen labels (v2.1)
+    "การเชื่อมต่อขัดข้อง ระบบอาจบันทึกแล้ว กำลังโหลดสถานะล่าสุด": "The connection dropped. It may already be saved — loading the latest status",
+    "ดาวน์โหลด": "Download", "เปิดขนาดเต็ม": "Open full size", "ดูรูป": "View image", "เปิดไฟล์ไม่ได้ กรุณาลองใหม่": "Couldn't open the file, please try again",
+    "สลิปห้อง {r}": "Slip · room {r}", "QR · {f}": "QR · {f}", "เบราว์เซอร์": "Browser", "เลื่อนดูเมนูเพิ่ม": "Scroll for more tabs",
+    "อุปกรณ์ไม่ทราบชื่อ": "Unknown device", "{b} บน {o}": "{b} on {o}",
+    "เกินกำหนด (วัน)": "Grace (days)", "บาท/วัน": "THB/day",
   };
 
   const norm = (s) => s.replace(/\s+/g, " ").trim();

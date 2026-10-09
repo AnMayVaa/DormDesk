@@ -97,6 +97,11 @@ def retention(dorm_id: int):
                     log.warning("could not purge object %s", r["object_id"])
 
 
+def purge_http_idem():
+    with pool.connection() as c:
+        c.execute("SELECT purge_http_idem()")
+
+
 def run_job(name: str, fn):
     with pool.connection() as c:
         c.execute("INSERT INTO job_state (name, last_run_at) VALUES (%s, now()) ON CONFLICT (name) DO UPDATE SET last_run_at=now()", (name,))
@@ -121,6 +126,7 @@ def tick(minute: int):
             run_job("settle_and_bill", lambda: [per_dorm(d) for d in dorms])
             if minute % 60 == 0:
                 run_job("retention", lambda: [retention(d) for d in dorms])
+                run_job("purge_http_idem", purge_http_idem)
         finally:
             conn.execute("SELECT pg_advisory_unlock(%s)", (LOCK_ID,))
 

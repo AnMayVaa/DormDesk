@@ -320,6 +320,8 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | **v2: topology.env ที่เดียว + scale_api.sh** | เดิมรายชื่อ API อยู่ 3 ที่ (D14) |
 | **v2: watchdog ทำ active health check** | ทดสอบพบว่าคำขอรอ API ที่ตายผ่าน tunnel (D15) |
 | **v2: ข้าม Owner 2FA และ docker-compose** | ไม่คุ้มก่อน Demo Day · CI ทดสอบครบแทน (D9) |
+| **v2.1: API 1 process ต่อเครื่อง + Idempotency-Key ทุกคำขอเขียน** | supervisor ของ uvicorn ฆ่า worker บน CPU 0.5 → 502 · คำตอบหายแต่บันทึกแล้ว → กดซ้ำ/Nginx retry ต้องไม่บันทึกซ้ำ (D19) |
+| **v2.1: ดูรูป/สลิป/QR ในหน้า แทนเปิดแท็บใหม่ · ตารางเป็นการ์ดบนมือถือ** | ผู้ใช้หลงทางเมื่อเปิดไฟล์ดิบ · audit 5 ขนาดจอ (D20) |
 | MVP scope และ tech stack ไม่ใส่ใน One-Pager | ไม่ใช่สิ่งที่โจทย์ขอ และอาจเปลี่ยน |
 | Chatbot ใส่ใน One-Pager เป็นไอเดียขาย | เพิ่มคุณค่าธุรกิจ ไม่ผูกมัดว่าต้องทำใน MVP |
 | ชื่อระบบ: DormDesk | สื่อชัดว่าเป็นระบบรับเรื่องของหอพัก จำง่าย |
@@ -342,6 +344,7 @@ LLM ไม่มี credential ของ database และไม่ต่อ DB
 | 8 ต.ค. 2026 | สร้าง store-01 (SeaweedFS HTTPS) + db-02 (standby) · migrate DB 02/03 + seed ใหม่ · deploy API 2.0 ทุกเครื่อง · boot hook ทุกเครื่อง · restart db-01 (archive_mode) — boot hook ตรวจเครื่องคู่ผ่าน |
 | 8 ต.ค. 2026 | Grafana ค้างเพราะ RAM 256 MB → resize mon-01 เป็น 512 MB (พบบั๊ก Console เติมชื่อกลุ่มซ้ำ → แก้ใน `console.sh`) · 7 alerts + ทดสอบอีเมล |
 | 8 ต.ค. 2026 | ทดสอบบนแล็บ: verify 48/48 · smoke 16/16 · flow 77/77 · backup + กู้คืน · PITR_OK · A11 failover → db-01 กันตัวเอง → rejoin → switchover กลับไม่เสียข้อมูล · A9 พบคำขอค้าง → เพิ่ม watchdog health check · api-03 scale out/in · k6 1/2/3 API |
+| 9 ต.ค. 2026 | **v2.1 (feedback ทีม):** แก้ 502 + ประวัติซ้ำ 3 รายการ (D19) · ปรับ UX ทุกขนาดจอ (D20) · flow 81/81 · smoke 16/16 · UI flow ผ่าน · audit 360/390/768/1180/1440 ไม่มีหน้าล้นจอ |
 
 ---
 

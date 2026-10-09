@@ -1,0 +1,93 @@
+# DormDesk v2.1 on the lab — 2026-10-09 (UTC times)
+# deploy: infra/deploy.sh db (migration only, no seed) · api 10.0.2.140 · api 10.0.2.141 · web
+
+## API process model (D19)
+api-01 / api-02: 1 uvicorn process each (--workers 1 --timeout-keep-alive 75), /api/health version 2.1.0
+'Child process [..] died' lines in /var/log/dormdesk-api.log: api-01 87 -> 87, api-02 1128 -> 1128 (no new restarts)
+web-01 upstream: keepalive 16; keepalive_timeout 30s (written by the watchdog from tunnel.conf)
+
+## Nginx 5xx (web-01 access.log)
+08 Oct 17:00 - 09 Oct 02:08 (before): 85 x 502, 8 x 504
+09 Oct 02:10 onward (after deploy, during the tests below): 0 x 5xx
+
+## Exactly-once writes through Nginx (both API servers) — request 70 (a smoke-test request)
+PASS same key twice -> first reply replayed (Idempotent-Replay)
+PASS pressed again with a new key -> still one history row
+PASS two parallel copies (both API servers) -> one row
+PASS other owner reusing the key -> 403, no replay
+4/4 passed
+
+## tools/smoke_test.py (public URL): 16/16 passed
+
+## tools/verify.sh (run in two parts: the full run is longer than one session command)
+## From the internet
+PASS N1 HTTPS entry 45.77.40.35:10201 (open)
+PASS trusted certificate (Let's Encrypt) for dormdesk-g02.duckdns.org
+PASS N2 no other port mapped (10200) (blocked)
+PASS N2 no other port mapped (10202) (blocked)
+PASS plain HTTP is redirected to HTTPS (301)
+## From web-01 (public subnet) — assume it is compromised
+PASS N5 web-01 -> db-01:5432 (blocked)
+PASS web-01 -> api-01:8000 directly (blocked)
+PASS web-01 -> internet (1.1.1.1:443) (blocked)
+PASS web-01 -> bastion:22 (tunnel) (open)
+## From api-01 (private subnet)
+PASS N6 api-01 -> db-01:5432 (open)
+PASS api-01 -> mon-01:3000 (blocked)
+PASS api-01 -> internet (1.1.1.1:443) (blocked)
+PASS api-01 -> store-01:8333 (S3 over TLS) (open)
+PASS api-01 -> store-01:8334 (plain HTTP) (blocked)
+PASS api-01 -> db-02:5432 (standby) (open)
+## From db-01
+PASS N7 db-01 -> internet (1.1.1.1:443) (blocked)
+PASS db-01 -> api-01:8000 (blocked)
+PASS db-01 -> store-01:8333 (blocked)
+PASS db-01 <-> db-02:5432 (replication) (open)
+## From db-02 (standby)
+PASS db-02 -> internet (1.1.1.1:443) (blocked)
+PASS db-02 -> api-01:8000 (blocked)
+PASS db-02 -> db-01:5432 (replication) (open)
+## From store-01 (object store)
+PASS store-01 -> internet (1.1.1.1:443) (blocked)
+PASS store-01 -> db-01:5432 (blocked)
+PASS store-01 -> api-01:8000 (blocked)
+PASS web-01 -> store-01:8333 (blocked)
+PASS mon-01 -> store-01:8333 (blocked)
+## From mon-01
+PASS mon-01 -> db-01:5432 (open)
+PASS mon-01 -> db-02:5432 (open)
+PASS mon-01 -> api-01:8000 (blocked)
+## AI tier (ai-01)
+PASS api-01 -> ai-01:8080 (model server) (open)
+PASS web-01 -> ai-01:8080 (blocked)
+PASS db-01 -> ai-01:8080 (blocked)
+PASS ai-01 -> internet (1.1.1.1:443) (blocked)
+PASS ai-01 -> db-01:5432 (blocked)
+## Inside the database
+PASS A3 RLS: app account without app.dorm_id sees 0 requests
+PASS A3 RLS: with app.dorm_id=2 only one dorm is visible
+PASS least privilege: app account cannot DELETE
+PASS Grafana account cannot read personal data
+PASS all API connections to the DB use TLS
+PASS RLS tenancy layer: with app.tenancy_id set only that tenancy is visible
+PASS replication account cannot read tables
+PASS Grafana account cannot read payment slips
+## Replication + backups
+PASS standby streaming from the primary over TLS (1)
+PASS db standby is read-only (in recovery)
+PASS standby archives WAL for point-in-time recovery (1088 segments)
+## Object store
+PASS S3 endpoint: TLS verified against DormDesk CA, anonymous access refused (403)
+PASS objects are stored encrypted (AES-256-GCM blob header DD1)
+## Firewall rules + boot hooks loaded (N8)
+web-01: INPUT=DROP OUTPUT=DROP rules=12 role=web boot_hook=yes
+api-01: INPUT=DROP OUTPUT=DROP rules=15 role=api boot_hook=yes
+api-02: INPUT=DROP OUTPUT=DROP rules=15 role=api boot_hook=yes
+db-01: INPUT=DROP OUTPUT=DROP rules=14 role=db boot_hook=yes
+db-02: INPUT=DROP OUTPUT=DROP rules=14 role=db boot_hook=yes
+store-01: INPUT=DROP OUTPUT=DROP rules=11 role=store boot_hook=yes
+mon-01: INPUT=DROP OUTPUT=DROP rules=13 role=mon boot_hook=yes
+ai-01: INPUT=DROP OUTPUT=DROP rules=11 role=ai boot_hook=yes
+
+13 passed, 0 failed
+(network part above: 35 passed, 0 failed) -> total 48/48

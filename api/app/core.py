@@ -19,7 +19,7 @@ from psycopg_pool import ConnectionPool
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 HOSTNAME = socket.gethostname()
-VERSION = "2.0.0"
+VERSION = "2.1.0"
 BKK = ZoneInfo("Asia/Bangkok")
 
 # The DSN lists db-01 AND db-02 with target_session_attrs=read-write: libpq connects to whichever is the

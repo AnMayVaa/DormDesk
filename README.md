@@ -20,7 +20,7 @@ db/      01_schema → 02_features (v2 + migration) → 03_security (roles, RLS,
 web/     HTML/JS (web-01) · assets/tenant-hub.js, admin-features.js, scanner.js, vendor/jsQR.js
 infra/   topology.env (รายชื่อเครื่อง — ที่เดียว) · deploy.sh · db/ (standby, failover, rejoin) · remote/ (setup ทุกเครื่อง,
          boot hook, tunnel+watchdog) · firewall/ · nginx/ · grafana/ · lab/console.sh · scale_api.sh · tls/
-tools/   seed_gen.py · smoke_test.py (16) · flow_test.py (77) · verify.sh (48) · backup.sh · loadtest/ (k6) · ci/
+tools/   seed_gen.py · smoke_test.py (16) · flow_test.py (81) · verify.sh (48) · ui_audit.js (5 screen sizes) · backup.sh · loadtest/ (k6) · ci/
 .github/ CI (GitHub Actions)
 ```
 

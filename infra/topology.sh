@@ -13,6 +13,7 @@ dd_upstream() {   # web-01: /etc/nginx/conf.d/dd_upstream.inc
   dd_api_list | while read -r n ip port; do
     printf '    server 127.0.0.1:%s max_fails=2 fail_timeout=10s;   # api-%s %s\n' "$port" "$n" "$ip"; done
   echo "    keepalive 16;"
+  echo "    keepalive_timeout 30s;   # shorter than uvicorn --timeout-keep-alive 75: Nginx never reuses a socket the API already closed"
   echo "}"
 }
 

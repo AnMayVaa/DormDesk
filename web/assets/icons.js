@@ -1,5 +1,6 @@
 // Line icons (24×24, stroke = currentColor). Drawn in the style of Lucide (ISC licence). No emoji in the UI.
 const DD_ICONS = {
+  download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/>',
   printer: '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   // ---- v2 features (from the team mockups)
   dumbbell: '<path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11"/>',

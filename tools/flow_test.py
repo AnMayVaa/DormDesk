@@ -289,6 +289,32 @@ check("new tenant sees none of the previous bills", s == 200 and bl["bills"] == 
 s, ti = call(A, "GET", f"/api/admin/rooms/{room102['id']}/tenancy")
 check("owner still sees the previous tenancy in history", s == 200 and ti["previous"], s)
 
+section("exactly-once writes (502 then retry)")
+# The lab bug: the status change was saved, the reply was lost (502), the owner pressed again -> 3 copies in the history.
+import threading
+s, rows = call(A, "GET", "/api/admin/dorms/1/requests")
+rid = next(r["id"] for r in rows if r["status"] in ("received", "in_progress"))
+s, before = call(A, "GET", f"/api/admin/requests/{rid}")
+n0 = len(before["events"])
+target = "done" if before["status"] != "done" else "in_progress"
+k = "t-" + uuid.uuid4().hex
+s1, p1 = call(A, "PATCH", f"/api/admin/requests/{rid}", body={"status": target, "note": "flow test"}, key=k)
+s2, p2 = call(A, "PATCH", f"/api/admin/requests/{rid}", body={"status": target, "note": "flow test"}, key=k)   # browser retry, same key
+check("retry with the same Idempotency-Key gets the first reply", s1 == 200 and s2 == 200 and p1 == p2, (s1, s2))
+s3, _ = call(A, "PATCH", f"/api/admin/requests/{rid}", body={"status": target, "note": "flow test"}, key="t-" + uuid.uuid4().hex)  # pressed again
+s, after = call(A, "GET", f"/api/admin/requests/{rid}")
+check("history gets the change once (not 3 times)", s3 == 200 and len(after["events"]) == n0 + 1, (n0, len(after["events"])))
+# two copies at the same moment (double tap / proxy retry): one runs, the other waits and gets the same reply
+k2, got = "t-" + uuid.uuid4().hex, []
+back = "in_progress" if target == "done" else "done"
+th = [threading.Thread(target=lambda: got.append(call(A, "PATCH", f"/api/admin/requests/{rid}", body={"status": back, "note": "parallel"}, key=k2)))
+      for _ in range(2)]
+[x.start() for x in th]; [x.join() for x in th]
+s, after2 = call(A, "GET", f"/api/admin/requests/{rid}")
+check("two parallel copies -> both 200, one event", all(g[0] == 200 for g in got) and len(after2["events"]) == n0 + 2, [g[0] for g in got])
+B_k = call(B, "PATCH", f"/api/admin/requests/{rid}", body={"status": "received"}, key=k2)[0]
+check("another owner reusing the key gets no replay (still 403)", B_k == 403, B_k)
+
 section("revocable sessions")
 A2 = login("owner.a@dormdesk.demo")
 s, ss = call(A2, "GET", "/api/auth/sessions")

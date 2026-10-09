@@ -114,17 +114,20 @@
           el("button", { class: "btn ghost sm", type: "button", onclick: () => draw(true) }, H.notify_email ? t("เปลี่ยน") : t("ตั้งค่า")));
         return;
       }
-      const inp = el("input", { class: "input", type: "email", placeholder: "you@example.com", "aria-label": "อีเมล", autocomplete: "email" });
+      const inp = el("input", { class: "input", type: "email", placeholder: "you@example.com", autocomplete: "email", inputmode: "email",
+        autocapitalize: "off", spellcheck: "false" });
       const ok = el("input", { type: "checkbox", id: "mailOk" });
       const err = el("div");
-      box.replaceChildren(el("form", { class: "stack spacer", onsubmit: async (ev) => {
+      // editing: keep the icon + title on top and give the form the whole card width (it was squeezed into the middle column)
+      box.replaceChildren(el("span", { class: "fac-icon" }, DD.icon("mail")), el("strong", { text: t("แจ้งเตือนทางอีเมล") }), el("span"),
+        el("form", { class: "stack wide", onsubmit: async (ev) => {
         ev.preventDefault();
         try { const r = await DD.api(base + "/contact", { method: "POST", json: { email: inp.value.trim(), consent: ok.checked } });
           H.notify_email = r.notify_email; DD.toast(r.notify_email ? t("บันทึกอีเมลแล้ว") : t("ปิดการแจ้งเตือนแล้ว")); draw(false); }
         catch (e) { errorTo(err)(e); }
       } }, el("label", { class: "field-label", for: "mailIn", text: "อีเมลรับแจ้งเตือน (เว้นว่าง = ปิด)" }), inp,
         el("label", { class: "check" }, ok, el("span", { class: "small", text: "ยินยอมให้หอใช้อีเมลนี้แจ้งเรื่องบิล ค่าปรับ และที่จอดรถของห้องนี้เท่านั้น ลบเมื่อย้ายออก" })),
-        err, el("div", { class: "row" }, el("button", { class: "btn sm", type: "submit" }, "บันทึก"),
+        err, el("div", { class: "row wrap" }, el("button", { class: "btn sm", type: "submit" }, "บันทึก"),
           el("button", { class: "btn ghost sm", type: "button", onclick: () => draw(false) }, "ยกเลิก"))));
       inp.id = "mailIn"; inp.focus();
     };
@@ -528,7 +531,7 @@
         el("div", { class: "field-label mt-2", text: t("เหตุผลจากเจ้าของหอ") }), el("p", { class: "reason-box", text: f.reason, translate: "no" }),
         f.photos.length ? el("div", {}, el("div", { class: "field-label mt-2", text: t("รูปหลักฐาน") }),
           el("div", { class: "photos" }, f.photos.map((pid, i) => { const src = `${base}/fines/${f.id}/photos/${pid}`;
-            return el("a", { href: src, target: "_blank", rel: "noopener" }, el("img", { src, alt: t("รูปหลักฐาน {n}", { n: i + 1 }), loading: "lazy" })); }))) : null,
+            return el("a", { href: src, "data-viewer": t("รูปหลักฐาน {n}", { n: i + 1 }) }, el("img", { src, alt: t("รูปหลักฐาน {n}", { n: i + 1 }), loading: "lazy" })); }))) : null,
         f.status === "billed" ? el("div", { class: "alert info mt-2" }, DD.icon("receipt"), el("span", { text: t("รวมในบิล {p} แล้ว", { p: periodName(f.bill_period) }) }))
           : ["open", "disputed", "confirmed"].includes(f.status) ? el("div", { class: "alert info mt-2" }, DD.icon("receipt"), el("span", {
             text: f.billing === "separate" ? t("เรียกเก็บแยก ดูได้ในแท็บบิล") : f.status === "disputed" ? t("รอเจ้าของหอตรวจข้อโต้แย้ง") : t("ถ้าไม่โต้แย้ง ค่าปรับนี้จะรวมในบิลเดือนถัดไป") })) : null),

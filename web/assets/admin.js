@@ -3,6 +3,10 @@
   const $ = (id) => document.getElementById(id);
   const el = DD.el;
   const S = { dorms: [], dormId: null, tab: "dash", reqs: [], filter: "open", urgentOnly: false, q: "" };
+  // the open tab lives in the address (#settings), so a reload or the TH/EN switch (which reloads) keeps you where you were
+  const TABS = ["dash", "reqs", "ai", "rooms", "cats", "billing", "parking", "spaces", "settings"];
+  const fromHash = location.hash.replace(/^#/, "");
+  if (TABS.includes(fromHash)) S.tab = fromHash;
   const OPEN = ["received", "in_progress"];
 
   // ================================================================ boot & auth
@@ -62,16 +66,35 @@
   });
   $("reload").addEventListener("click", () => render(true));
 
+  // tabs scroll sideways on phones / iPad portrait: keep the chosen tab visible and show a fade where more tabs are hidden
+  function showActiveTab() {
+    const bar = $("tabs"), cur = bar.querySelector('[aria-selected="true"]');
+    if (cur && bar.scrollWidth > bar.clientWidth) {
+      const l = cur.offsetLeft - bar.offsetLeft, r = l + cur.offsetWidth;
+      if (l < bar.scrollLeft || r > bar.scrollLeft + bar.clientWidth) bar.scrollTo({ left: Math.max(0, l - 24), behavior: "smooth" });
+    }
+    tabFade();
+  }
+  function tabFade() {
+    const bar = $("tabs"), more = bar.scrollWidth - bar.clientWidth;
+    bar.classList.toggle("more-right", more > 2 && bar.scrollLeft < more - 2);
+    bar.classList.toggle("more-left", more > 2 && bar.scrollLeft > 2);
+  }
+  $("tabs").addEventListener("scroll", tabFade, { passive: true });
+  window.addEventListener("resize", tabFade);
+
   // ================================================================ render
   async function render(toastAfter) {
     const dorm = S.dorms.find((d) => d.id === S.dormId);
     $("dormTitle").textContent = dorm ? dorm.name : "";
     $("dormTitle").setAttribute("translate", "no");
     $("tabs").querySelectorAll("[data-tab]").forEach((b) => { b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)); b.tabIndex = b.dataset.tab === S.tab ? 0 : -1; });
+    if (location.hash !== "#" + S.tab) window.history.replaceState(null, "", S.tab === "dash" ? location.pathname : "#" + S.tab);
+    showActiveTab();
     const X = window.DD_ADMIN_EXT;
     const ctx = { dormId: S.dormId, dorm, fail, rerender: () => render() };
     try {
-      X.syncTabs(ctx).then((tab) => { if (tab && tab !== S.tab) { S.tab = tab; render(); } }).catch(() => {});
+      X.syncTabs(ctx).then((tab) => { if (tab && tab !== S.tab) { S.tab = tab; render(); } else showActiveTab(); }).catch(() => {});
       const ext = { billing: X.billing, parking: X.parking, spaces: X.spaces, settings: X.settings }[S.tab];
       await (ext ? ext($("panel"), ctx) : ({ dash: renderDash, reqs: renderReqs, rooms: renderRooms, cats: renderCats, ai: renderAI })[S.tab]());
       $("updated").textContent = t("อัปเดต {t}", { t: new Date().toLocaleTimeString(DD_I18N.locale, { hour: "2-digit", minute: "2-digit" }) });
@@ -184,7 +207,10 @@
       try {
         await DD.api(`/api/admin/requests/${id}`, { method: "PATCH", json: { ...body, note: note.value.trim() || null } });
         DD.toast(okMsg); close(); render();
-      } catch (e) { fail(e); dr.querySelectorAll(".status-actions .btn, #prio").forEach((b) => { b.disabled = false; }); }
+      } catch (e) {
+        if (e.unsure) { DD.toast(t("การเชื่อมต่อขัดข้อง ระบบอาจบันทึกแล้ว กำลังโหลดสถานะล่าสุด"), "err"); close(); render(); openRequest(id); return; }
+        fail(e); dr.querySelectorAll(".status-actions .btn, #prio").forEach((b) => { b.disabled = false; });
+      }
     };
     const closeBtn = el("button", { class: "icon-btn", type: "button", "aria-label": "ปิด", onclick: close }, DD.icon("x"));
     const initials = (r.reporter_name || "?").trim().slice(0, 1);
@@ -199,7 +225,7 @@
         r.detail ? el("p", { text: r.detail, translate: "no" }) : null,
         r.photos.length ? el("div", { class: "photos" }, r.photos.map((pid, i) => {
           const src = `/api/admin/requests/${id}/photos/${pid}`;
-          return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) }, el("img", { src, alt: t("รูปที่แนบ {n}", { n: i + 1 }), loading: "lazy" }));
+          return el("a", { href: src, "data-viewer": t("รูปที่แนบ {n}", { n: i + 1 }), "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) }, el("img", { src, alt: t("รูปที่แนบ {n}", { n: i + 1 }), loading: "lazy" }));
         })) : null,
         el("div", { class: "card" }, el("div", { class: "contact" }, el("div", { class: "avatar", text: initials }),
           el("div", { class: "spacer" }, el("div", { class: "row-title", text: r.reporter_name, translate: "no" }),

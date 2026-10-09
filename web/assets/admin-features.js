@@ -27,8 +27,10 @@
   const card = (icon, title, ...body) => el("section", { class: "card mt-2" },
     el("div", { class: "card-title" }, DD.icon(icon), el("h2", { class: "mt-0", text: title })), ...body);
   const kpi = (icon, tone, v, l) => el("div", { class: "card kpi" }, el("div", { class: "kpi-icon " + tone }, DD.icon(icon)), el("div", { class: "v", text: v }), el("div", { class: "l", text: l }));
-  const tbl = (head, rows, empty) => rows.length ? el("div", { class: "tbl-wrap" }, el("table", { class: "tbl" },
-    el("thead", {}, el("tr", {}, head.map((h) => el("th", { text: h })))), el("tbody", {}, rows))) : DD.empty("checkCircle", empty, null);
+  // tables: every cell gets its column head as data-label, so on phones each row becomes a small card (.tbl.cards-sm)
+  const labelCells = (head, rows) => { rows.forEach((tr) => [...tr.children].forEach((td, i) => td.setAttribute("data-label", head[i] || ""))); return rows; };
+  const tbl = (head, rows, empty) => rows.length ? el("div", { class: "tbl-wrap" }, el("table", { class: "tbl cards-sm" },
+    el("thead", {}, el("tr", {}, head.map((h) => el("th", { text: h })))), el("tbody", {}, labelCells(head, rows)))) : DD.empty("checkCircle", empty, null);
   const room = (no) => el("td", { class: "room-no", text: no, translate: "no" });
   const errorBox = (box, e) => box.replaceChildren(DD.errorBox(e));
   const steps = (items) => el("div", { class: "steps" }, items.map(([label, cls]) => el("span", { class: cls || "", text: label })));
@@ -171,7 +173,7 @@
         el("span", { class: "badge in_progress", text: String(b.slips_pending.length) })),
       tbl([t("ห้อง"), t("งวด"), t("ยอดบิล"), t("ส่งเมื่อ"), t("สลิป"), ""], b.slips_pending.map((x) => el("tr", {}, room(x.room_no), el("td", { text: periodName(x.period) }),
         el("td", { class: "num", text: money(x.total) }), el("td", { text: DD.fmt(x.sent_at) }),
-        el("td", {}, el("a", { class: "btn ghost sm", href: `/api/admin/bills/${x.bill_id}/slips/${x.slip_id}`, target: "_blank", rel: "noopener" }, DD.icon("image"), "ดูสลิป")),
+        el("td", {}, el("a", { class: "btn ghost sm", href: `/api/admin/bills/${x.bill_id}/slips/${x.slip_id}`, "data-viewer": t("สลิปห้อง {r}", { r: x.room_no }) }, DD.icon("image"), "ดูสลิป")),
         el("td", {}, el("div", { class: "row" },
           el("button", { class: "btn ok sm", type: "button", onclick: async () => {
             try { const r = await api(`/api/admin/bills/${x.bill_id}/confirm`, { method: "POST" }); DD.toast(t("ยืนยันแล้ว · ใบเสร็จ {n}", { n: r.receipt_no })); invalidate(); billing(panel, ctx); } catch (e) { ctx.fail(e); }
@@ -230,24 +232,27 @@
   function autoBillCard(s, ctx, reload) {
     const f = {};
     const sw = (k, label) => { f[k] = el("input", { type: "checkbox", checked: s[k], "aria-label": label }); return el("label", { class: "switch" }, f[k], el("span")); };
-    const num = (k, cls, scale = 1) => { f[k] = el("input", { class: "input " + (cls || "w-80"), inputmode: "decimal", value: s[k] / scale }); f[k].dataset.scale = scale; return f[k]; };
-    const sel = (k, opts) => { f[k] = el("select", { class: "select w-150" }, opts.map(([v, l]) => el("option", { value: v, text: t(l), selected: s[k] === v }))); return f[k]; };
+    const num = (k, cls, scale = 1, label) => { f[k] = el("input", { class: "input " + (cls || "w-80"), inputmode: "decimal", value: s[k] / scale, "aria-label": label || null }); f[k].dataset.scale = scale; return f[k]; };
+    const sel = (k, opts, label) => { f[k] = el("select", { class: "select w-150", "aria-label": label }, opts.map(([v, l]) => el("option", { value: v, text: t(l), selected: s[k] === v }))); return f[k]; };
+    const pair = (label, input) => el("label", { class: "pair" }, el("span", { class: "xs muted", text: label }), input);   // label wraps input = accessible name
+    const fields = (...x) => el("div", { class: "set-fields" }, ...x);
     const err = el("div");
     const modes = [["meter", "ตามมิเตอร์"], ["flat", "เหมาจ่าย"], ["none", "ไม่เก็บ"]];
     return el("section", { class: "card mt-2" }, el("div", { class: "card-title" }, DD.icon("repeat"), el("h2", { class: "mt-0", text: t("บิลอัตโนมัติรายเดือน") })),
       el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("เปิดใช้บิลอัตโนมัติ") }), sw("bill_auto", t("เปิดบิลอัตโนมัติ"))),
-      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ออกบิลทุกวันที่") }), num("bill_issue_day")),
-      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ครบกำหนดชำระวันที่") }), num("bill_due_day")),
-      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าส่วนกลาง (บาท/เดือน)") }), num("common_fee", "w-110", 100)),
-      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าน้ำ") }), sel("water_mode", modes), el("span", { class: "xs muted", text: t("บาท/หน่วย") }), num("water_rate", "w-80", 100),
-        el("span", { class: "xs muted", text: t("เหมา") }), num("water_flat", "w-80", 100)),
-      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าไฟ") }), sel("elec_mode", modes), el("span", { class: "xs muted", text: t("บาท/หน่วย") }), num("elec_rate", "w-80", 100),
-        el("span", { class: "xs muted", text: t("เหมา") }), num("elec_flat", "w-80", 100)),
+      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ออกบิลทุกวันที่") }), num("bill_issue_day", null, 1, t("ออกบิลทุกวันที่"))),
+      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ครบกำหนดชำระวันที่") }), num("bill_due_day", null, 1, t("ครบกำหนดชำระวันที่"))),
+      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าส่วนกลาง (บาท/เดือน)") }), num("common_fee", "w-110", 100, t("ค่าส่วนกลาง (บาท/เดือน)"))),
+      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าน้ำ") }),
+        fields(sel("water_mode", modes, t("ค่าน้ำ")), pair(t("บาท/หน่วย"), num("water_rate", "w-80", 100)), pair(t("เหมา"), num("water_flat", "w-80", 100)))),
+      el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("ค่าไฟ") }),
+        fields(sel("elec_mode", modes, t("ค่าไฟ")), pair(t("บาท/หน่วย"), num("elec_rate", "w-80", 100)), pair(t("เหมา"), num("elec_flat", "w-80", 100)))),
       el("div", { class: "alert warn mt-2" }, DD.icon("clock"), el("span", { text: t("ค่าน้ำไฟแบบมิเตอร์ ต้องกรอกเลขหน่วยก่อน บิลห้องนั้นจะเป็นร่างจนกว่าจะกรอก") })),
       el("div", { class: "set-row" }, el("span", { class: "spacer" }, t("ค่าปรับจ่ายช้าอัตโนมัติ"), el("br"),
-        el("span", { class: "xs muted", text: t("เกินกำหนดกี่วัน · บาทต่อวัน (รวมในบิลถัดไป)") })), num("late_fee_grace_d"), num("late_fee_per_day", "w-80", 100), sw("late_fee_enabled", t("ค่าปรับจ่ายช้า"))),
+        el("span", { class: "xs muted", text: t("เกินกำหนดกี่วัน · บาทต่อวัน (รวมในบิลถัดไป)") })),
+        fields(sw("late_fee_enabled", t("ค่าปรับจ่ายช้า")), pair(t("เกินกำหนด (วัน)"), num("late_fee_grace_d")), pair(t("บาท/วัน"), num("late_fee_per_day", "w-80", 100)))),
       el("div", { class: "set-row" }, el("span", { class: "spacer", text: t("เลขพร้อมเพย์ของหอ") }),
-        (f.promptpay_id = el("input", { class: "input w-150", inputmode: "numeric", value: s.promptpay_id || "", placeholder: "เบอร์ 10 หลัก / เลข 13 หลัก" }))),
+        (f.promptpay_id = el("input", { class: "input w-150", inputmode: "numeric", value: s.promptpay_id || "", placeholder: "เบอร์ 10 หลัก / เลข 13 หลัก", "aria-label": t("เลขพร้อมเพย์ของหอ") }))),
       el("button", { class: "btn mt-2", type: "button", onclick: async () => {
         const body = {};
         for (const [k, inp] of Object.entries(f)) {
@@ -303,7 +308,7 @@
             } }, "ยกเลิกบิล") : null),
           b.slips.length ? el("div", {}, el("h3", { text: t("สลิป") }), ...b.slips.map((sl) => el("div", { class: "history-row" }, badge({ pending: ["รอตรวจ", "received"], confirmed: ["ยืนยันแล้ว", "done"], returned: ["ตีกลับ", "urgent"] }, sl.decision),
             el("span", { class: "spacer small", text: DD.fmt(sl.sent_at) + (sl.message ? " · " + sl.message : "") }),
-            el("a", { class: "btn ghost sm", href: `/api/admin/bills/${id}/slips/${sl.id}`, target: "_blank", rel: "noopener" }, DD.icon("image"), "ดู")))) : null,
+            el("a", { class: "btn ghost sm", href: `/api/admin/bills/${id}/slips/${sl.id}`, "data-viewer": t("สลิป") }, DD.icon("image"), "ดู")))) : null,
           b.edits.length ? el("div", {}, el("h3", { text: t("ประวัติการแก้ไข") }), ...b.edits.map((e) => el("div", { class: "history-row small" },
             el("span", { class: "spacer", text: `${DD.fmt(e.at)} · ${money(e.before.total)} → ${money(e.after.total)}` }), el("span", { class: "muted", translate: "no", text: e.reason })))) : null,
           el("div", {}, el("h3", { text: t("ข้อความกับผู้เช่า") }), thread(b.messages),
@@ -367,7 +372,7 @@
           el("div", { class: "amount-lg num", text: baht(f.amount) }), f.amount !== f.original_amount ? el("p", { class: "small muted", text: t("ยอดเดิม {a}", { a: baht(f.original_amount) }) }) : null,
           el("p", { class: "reason-box", text: f.reason, translate: "no" }),
           f.photos.length ? el("div", { class: "photos" }, f.photos.map((pid) => { const src = `/api/admin/fines/${id}/photos/${pid}`;
-            return el("a", { href: src, target: "_blank", rel: "noopener" }, el("img", { src, alt: t("รูปหลักฐาน"), loading: "lazy" })); })) : null,
+            return el("a", { href: src, "data-viewer": t("รูปหลักฐาน") }, el("img", { src, alt: t("รูปหลักฐาน"), loading: "lazy" })); })) : null,
           f.bill_period ? el("div", { class: "alert info" }, DD.icon("receipt"), el("span", { text: t("อยู่ในบิล {p}", { p: periodName(f.bill_period) }) })) : null,
           open ? el("div", { class: "row wrap" }, el("span", { class: "small", text: t("ลดยอดเป็น") }), amt, act(t("บันทึกยอด"), "ghost", () => ({ amount: Number(amt.value) || 0 })),
             ["open", "disputed"].includes(f.status) ? act(t("ยืนยันค่าปรับ"), "ok", () => ({ status: "confirmed" })) : null,
@@ -513,6 +518,17 @@
   }
 
   // ================================================================ settings: features, QR, rules, facilities, change tenant, sessions
+  // "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 …) … Safari/604.1" -> "Safari on iPhone"
+  function deviceName(ua) {
+    if (!ua) return t("อุปกรณ์ไม่ทราบชื่อ");
+    const os = /iPad/.test(ua) ? "iPad" : /iPhone/.test(ua) ? "iPhone" : /Android/.test(ua) ? "Android" : /Windows/.test(ua) ? "Windows"
+      : /Mac OS X|Macintosh/.test(ua) ? "macOS" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+    const b = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /SamsungBrowser/.test(ua) ? "Samsung Internet" : /Line\//.test(ua) ? "LINE"
+      : /Firefox|FxiOS/.test(ua) ? "Firefox" : /Chrome|CriOS/.test(ua) ? "Chrome" : /Safari/.test(ua) ? "Safari"
+      : /curl|python|k6|Go-http/i.test(ua) ? ua.split(/[\s/]/)[0] : t("เบราว์เซอร์");
+    return os ? t("{b} บน {o}", { b, o: os }) : b;
+  }
+
   async function settings(panel, ctx) {
     panel.replaceChildren(el("div", { class: "card" }, DD.skeletonLines(8)));
     const [st, rooms, sess] = await Promise.all([api(`/api/admin/dorms/${ctx.dormId}/settings`), api(`/api/admin/dorms/${ctx.dormId}/rooms`), api("/api/auth/sessions")]);
@@ -547,11 +563,12 @@
     const KIND = { fitness: ["dumbbell", "ฟิตเนส"], pool: ["waves", "สระว่ายน้ำ"], space: ["calendar", "ห้องส่วนกลาง (จอง)"] };
     const qrRows = st.facilities.map((f) => el("div", { class: "set-row" }, el("span", { class: "fac-icon" }, DD.icon(KIND[f.kind][0])),
       el("span", { class: "spacer" }, el("strong", { translate: "no", text: f.name }), el("br"), el("span", { class: "xs muted", text: t(KIND[f.kind][1]) + ` · ${f.open_from}–${f.open_to}` + (f.capacity ? " · " + t("ความจุ {n}", { n: f.capacity }) : "") })),
-      el("a", { class: "btn ghost sm", href: `/api/admin/facilities/${f.id}/qr.svg`, target: "_blank", rel: "noopener" }, DD.icon("printer"), "พิมพ์"),
+      el("div", { class: "set-actions" },
+      el("button", { class: "btn ghost sm", type: "button", onclick: () => DD.view({ src: `/api/admin/facilities/${f.id}/qr.svg`, title: t("QR · {f}", { f: f.name }), svg: true, print: true, download: `qr-${f.id}.svg` }) }, DD.icon("printer"), "พิมพ์"),
       el("button", { class: "btn ghost sm", type: "button", onclick: async () => {
         if (!await DD.confirm({ title: t("เปลี่ยน QR ของ {f}?", { f: f.name }), text: t("QR เดิมที่พิมพ์ไว้จะใช้ไม่ได้ทันที ต้องพิมพ์ใหม่"), ok: t("เปลี่ยน QR"), danger: true })) return;
         try { await api(`/api/admin/facilities/${f.id}/rotate-qr`, { method: "POST" }); DD.toast(t("เปลี่ยน QR แล้ว พิมพ์ใบใหม่ได้เลย")); } catch (e) { ctx.fail(e); }
-      } }, DD.icon("refresh"), "เปลี่ยน QR")));
+      } }, DD.icon("refresh"), "เปลี่ยน QR"))));
     const fName = el("input", { class: "input", id: "nfName", maxlength: 60, placeholder: "เช่น ห้องประชุมชั้น 1" });
     const fKind = el("select", { class: "select", id: "nfKind" }, Object.entries(KIND).map(([k, [, l]]) => el("option", { value: k, text: t(l) })));
     const fCap = el("input", { class: "input", id: "nfCap", inputmode: "numeric", placeholder: "15" });
@@ -591,7 +608,7 @@
       card("cpu", t("อุปกรณ์ที่เข้าสู่ระบบบัญชีนี้"),
         el("p", { class: "small muted", text: t("ออกจากระบบอุปกรณ์อื่นได้ทันที เช่น ทำมือถือหาย หรือผู้จัดการเลิกงาน (มีผลกับเซิร์ฟเวอร์ API ทั้ง 2 เครื่องพร้อมกัน)") }),
         ...sess.map((x) => el("div", { class: "history-row" }, DD.icon(x.current ? "checkCircle" : "user"),
-          el("span", { class: "spacer" }, el("span", { class: "small", translate: "no", text: (x.device || "-").slice(0, 70) }),
+          el("span", { class: "spacer" }, el("span", { class: "small", translate: "no", title: x.device || "", text: deviceName(x.device) }),
             el("div", { class: "row-meta", text: t("IP {ip} · ใช้ล่าสุด {d}", { ip: x.ip || "-", d: DD.ago(x.last_seen_at) }) + (x.current ? " · " + t("เครื่องนี้") : "") })),
           x.current ? null : el("button", { class: "btn ghost sm", type: "button", onclick: async () => {
             try { await api(`/api/auth/sessions/${x.id}/revoke`, { method: "POST" }); DD.toast(t("ออกจากระบบอุปกรณ์นั้นแล้ว")); reload(); } catch (e) { ctx.fail(e); }

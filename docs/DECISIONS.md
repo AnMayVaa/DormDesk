@@ -41,6 +41,7 @@ Read this together with `DormDesk_System_Architecture.md` (what the system is) a
 ### D7. Retrying writes must be safe
 - **Problem.** Nginx retries a failed request on the other API (`proxy_next_upstream … non_idempotent`). Through the SSH tunnel a dead API looks like "sent, then cut", so without retries POSTs returned 502 during failover (v1 finding).
 - **Choice.** Every create carries an `Idempotency-Key`; the key is stored in `idem_keys` **in the same transaction** as the write, so a retry returns the first result instead of creating a duplicate. State changes set absolute values.
+- **Correction (v2.1, D19).** "State changes set absolute values" was not true for the repair status: each change also adds a history row. A retried status change therefore added the row twice. D19 extends the key to every write.
 
 ---
 
@@ -120,8 +121,33 @@ Read this together with `DormDesk_System_Architecture.md` (what the system is) a
 - **Result** (`evidence/loadtest_summary_2026-10-08.txt`): 1 API 50.6 req/s, median 1.32 s → 2 APIs 66.9 req/s, median 0.73 s (+32 % throughput, median halved). A 3rd API did **not** help (59.6 req/s, worse p95): CPU stats show the 0.5-vCPU database throttling. Next step is the data tier (more DB CPU, or read-only pages served by db-02), not more APIs.
 
 ### D18. CI (GitHub Actions)
-- **Choice.** Every push: Python compile, `node --check`, `bash -n` + shellcheck (errors), Grafana files up to date, `nginx -t` on the generated config, then an end-to-end job with **PostgreSQL 16 + SeaweedFS + the API**: smoke test (16), flow test (77), object backup round trip.
+- **Choice.** Every push: Python compile, `node --check`, `bash -n` + shellcheck (errors), Grafana files up to date, `nginx -t` on the generated config, then an end-to-end job with **PostgreSQL 16 + SeaweedFS + the API**: smoke test (16), flow test (81 since v2.1), object backup round trip.
 - **Result.** shellcheck found a real bug before CI even ran on GitHub: `infra/lab/console.sh` fed the page HTML and the Python script through the same stdin (`list` never worked).
+
+### D19. One click = one change, even when the reply is lost (v2.1, found by the team)
+- **Problem.** A teammate changed a repair status on the lab, got **502**, but the change was saved. Pressing again saved it again; the history showed the same step **3 times**, and the tenant saw the duplicates too.
+- **How we looked for the cause.** The access log showed 502/504 bursts only on the API, never on static files. The API logs had **1,128 "Child process died"** lines on api-02. uvicorn with `--workers 2` runs a supervisor that pings each worker and kills it after 5 s without an answer. On a 0.5-vCPU container that is throttled under load, a busy worker misses the ping → killed in the middle of a request → Nginx gets a cut connection (502) or waits (504) → Nginx retries the PATCH on the other API (`non_idempotent`, D7) → the user presses again. Every path writes one more history row.
+- **Options.** (a) only stop the restarts — fixes this cause, but any lost reply (Wi-Fi, tunnel, timeout) would still duplicate; (b) stop Nginx retrying writes — then a dead API means a 502 for the user again (the v1 problem from D7); (c) make every write *exactly-once* by key, then retries are harmless and can stay. **Chosen: (a) + (c)**, plus a small guard in the data.
+- **What we built.**
+  1. `api/start.sh`: `--workers 1` (we scale with more servers, D14 — not more processes on half a CPU) and `--timeout-keep-alive 75`. The Nginx upstream got `keepalive_timeout 30s`, shorter than the API's, so Nginx never reuses a connection the API already closed (another classic source of random 502s).
+  2. `api/app/idempotency.py`: middleware for every POST/PATCH/PUT with an `Idempotency-Key`. It **records the key before** the handler runs and **stores the reply after**, in the shared database (`http_idem`), so it works across api-01 and api-02. Same key again → the stored reply (`Idempotent-Replay: true`); still running → wait up to 12 s (below Nginx's 15 s), then `409` + `Retry-After`; failed with 5xx → may run again; abandoned > 60 s → taken over. Scope = method + path + session cookie (nobody can replay someone else's reply). Rows are purged after 24 h by a `SECURITY DEFINER` function, so the app role still has no `DELETE`.
+  3. `web/assets/common.js`: every write gets a key; on 502/503/504, no answer, or `409 + Retry-After` the **same key** is sent again (up to 3 tries). If it still fails the owner sees "the connection dropped, it may already be saved" and the drawer reloads the real status instead of inviting a second click.
+  4. `admin_update_request`: the same status + same note from the same owner within 10 minutes is recorded once (covers a double press with two different keys).
+- **Result.** Reproduced in a browser test: the first two replies are thrown away as 502 → the page retries with the same key → **1** history row, success message. Flow test +4 checks (same key → same reply; pressed again → still one row; two parallel copies → one row; another owner reusing the key → still 403). On the lab after deploy (`evidence/v2.1_lab_2026-10-09.txt`): one process per API, the "Child process died" counters stopped (api-01 87, api-02 1,128 — no new lines), **0** responses 5xx (the 9 hours before: 85 × 502, 8 × 504), and the same 4 checks pass through Nginx across both API servers.
+
+### D20. Works on any screen: phone, iPad, desktop (v2.1)
+- **Problem (owner feedback).** "Settings: where does it redirect?", "the e-mail text box is squeezed on the phone", "a button runs off the screen".
+- **How we looked.** A Playwright audit (`tools/ui_audit.js`) opens every tenant and owner page at 360, 390, 768, 1180 and 1440 px and reports: the whole page scrolling sideways, elements outside the screen, inputs narrower than 150 px, buttons under 32 px. Before: the landing page, billing and settings scrolled sideways on phones; the e-mail form sat in a ~40 px column.
+- **What we changed.**
+  - The "redirect": *Print QR* (and slips, photos) opened the raw API file in a new tab — a bare SVG with no way back on a phone. Now an **in-page viewer** shows it with Print / Download / Close (print CSS prints only the QR). The admin tab is kept in the address (`/admin#settings`), so a reload or the TH/EN switch no longer throws you back to the overview.
+  - Long buttons wrap their text on phones; the "For dorm owners" button becomes a lock icon (name kept for screen readers).
+  - Grid/flex children may shrink (`min-width: 0`), so one wide table no longer widens the whole page.
+  - Tables turn into **one card per row** on phones (each value shows its column name); the meter table is half as long as a first card version.
+  - Settings rows wrap their controls under the label; rate fields stay in label + input pairs; the rules use 2 columns on iPad.
+  - The e-mail form spans the whole card, with `inputmode="email"` and no auto-capitalisation.
+  - The admin tabs scroll sideways with a fade on the side where more tabs are hidden; the chosen tab is scrolled into view.
+  - Signed-in devices show "Safari on iPhone" instead of a cut user-agent string.
+- **Result.** Audit at 5 widths: 0 pages scroll sideways, 0 elements off screen; the only "narrow" inputs left are fixed-size number fields (rates, units). UI flow test still passes (scan QR, book, send slip, owner sees slip, receipt, fine reply, parking approve).
 
 ---
 
@@ -146,6 +172,10 @@ Read this together with `DormDesk_System_Architecture.md` (what the system is) a
 | 15 | dead API made requests hang | tunnel accepts, bastion waits (D15) | watchdog active health check |
 | 16 | Grafana unusable | 256 MB memory limit (D16) | 512 MB, everything provisioned by script |
 | 17 | `.env` DSN broke on `&` | shell `source` treats `&` as background | quote the value |
+| 18 | 502 on a saved status change, history ×3 | uvicorn worker health-ping kills on a throttled CPU + Nginx write retry + second press (D19) | 1 worker, exactly-once key middleware, client retry with the same key, de-dup |
+| 19 | "Settings redirects somewhere" | Print QR opened the raw SVG in a new tab | in-page viewer with Print / Download (D20) |
+| 20 | page scrolls sideways on phones | grid children keep their content width (`min-width: auto`) | `min-width: 0`, table → cards on phones (D20) |
+| 21 | the viewer hook would have hijacked the tenant's menu | tenant menu links already used `data-view` | renamed the viewer attribute to `data-viewer` (caught in review before release) |
 
 ## Part D — Not done (and why)
 - **Owner 2FA, docker-compose dev** — skipped by decision (D9).

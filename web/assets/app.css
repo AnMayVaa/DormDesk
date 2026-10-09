@@ -394,3 +394,48 @@ body { animation: fade-in .2s ease-out; }
 .bubble pre { margin: .5rem 0 0; padding: .6rem .75rem; border-radius: var(--r-sm); background: var(--surface); font: .78rem/1.5 var(--mono); overflow-x: auto; color: var(--ink-2); }
 .thinking { display: flex; gap: .6rem; align-items: center; color: var(--muted); font-size: .9rem; }
 .thinking .skel { width: 120px; height: 10px; }
+
+/* ------------------------------------------------------------------ v2.1: small screens, any device (phone · iPad · desktop)
+   Found with an automated audit at 360 / 390 / 768 / 1180 / 1440 px (tools/ui_audit.js): page-wide sideways scroll,
+   buttons running off the screen, forms squeezed into a narrow column. */
+/* grid and flex children may shrink below their content width (the default min-width:auto let one wide table stretch the page) */
+.card, .spacer, .two-col > *, .grid-2 > *, .grid-3 > *, .dash-grid > *, #panel > *, .drawer-body > * { min-width: 0; }
+.btn { max-width: 100%; }
+.btn > span { overflow: hidden; text-overflow: ellipsis; }
+.modal { max-height: 92dvh; overflow-y: auto; }
+@media (max-width: 560px) {
+  /* long Thai labels wrap inside the button instead of pushing it off the screen */
+  .btn { white-space: normal; text-align: center; line-height: 1.25; padding-block: .45rem; }
+  .row.wrap > .btn { flex: 1 1 auto; }
+  .card { padding: 1rem; }
+}
+/* landing: the "for dorm owners" button becomes a lock icon on phones (its name stays for screen readers) */
+@media (max-width: 520px) {
+  .nav-cta { width: 44px; padding: 0; }
+  .nav-cta span { display: none; }
+}
+/* admin tabs: one sideways-scrolling row, with a fade on the side where more tabs are hidden */
+.tabs { scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+.tabs.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); }
+.tabs.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
+@media (max-width: 767px) { .tab { padding: 0 .75rem; } #appView h1 { font-size: 1.35rem; } }
+
+/* ------------------------------------------------------------------ in-page viewer (photos, slips, printable QR) */
+.modal.viewer { width: min(94vw, 760px); display: flex; flex-direction: column; gap: .75rem; padding: 1rem; }
+.viewer-head { display: flex; align-items: center; gap: .75rem; }
+.viewer-head strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-stage { min-height: 0; overflow: auto; display: grid; place-items: center; background: var(--surface); border-radius: var(--r-sm); padding: .5rem; }
+.viewer-stage img { max-width: 100%; max-height: 68dvh; width: auto; height: auto; object-fit: contain; border-radius: 8px; }
+.viewer-stage .skel.block { width: 100%; height: 240px; }
+.viewer-svg { display: block; width: min(100%, 420px); height: auto; background: #fff; border-radius: 12px; padding: 8px; }
+.viewer-actions { justify-content: flex-end; }
+.viewer-actions:empty { display: none; }
+@media print {
+  body.printing-view > *:not(.viewer) { display: none !important; }
+  body.printing-view .modal.viewer { position: static; transform: none; width: 100%; max-height: none; box-shadow: none; border: 0; animation: none; overflow: visible; }
+  body.printing-view .viewer-actions, body.printing-view .viewer-head { display: none !important; }   /* the QR itself carries the name */
+  body.printing-view .viewer-stage { background: none; }
+  body.printing-view .viewer-svg { width: 12cm; }
+}

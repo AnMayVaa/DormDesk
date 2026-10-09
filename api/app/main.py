@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import admin_features, auth, insight, jobs, notify, storage, tenant
+from .idempotency import IdempotencyMiddleware
 from .auth import require_admin, require_dorm_access
 from .core import (HOSTNAME, VERSION, ApiError, client_ip, features_of, log_event, mask_token, one, pool, settings,
                    tenant_tx)
@@ -49,6 +50,7 @@ app = FastAPI(title="DormDesk API", lifespan=lifespan, docs_url=None, redoc_url=
 app.include_router(auth.router)
 app.include_router(tenant.router)
 app.include_router(admin_features.router)
+app.add_middleware(IdempotencyMiddleware)   # exactly-once POST/PATCH/PUT across Nginx + browser retries
 
 
 # ---------------------------------------------------------------- errors: one format everywhere
@@ -323,10 +325,15 @@ def admin_update_request(rid: int, body: RequestPatch, request: Request, backgro
         c.execute("UPDATE requests SET status=%s, priority=%s, updated_at=now(), "
                   "done_at = CASE WHEN %s='done' THEN COALESCE(done_at, now()) ELSE NULL END WHERE id=%s",
                   (new_status, new_priority, new_status, rid))
-        if new_status != cur["status"] or body.note:
+        note = (body.note or "").strip() or None
+        last = c.execute("SELECT to_status, note, actor, created_at > now() - interval '10 minutes' AS recent "
+                         "FROM request_events WHERE request_id=%s ORDER BY id DESC LIMIT 1", (rid,)).fetchone()
+        repeat = bool(last and last["recent"] and last["to_status"] == new_status and last["note"] == note
+                      and last["actor"] == f"admin:{aid}" and new_status == cur["status"])
+        if (new_status != cur["status"] or note) and not repeat:   # the same change sent twice is recorded once
             c.execute("INSERT INTO request_events (dorm_id, request_id, from_status, to_status, note, actor) "
                       "VALUES (%s,%s,%s,%s,%s,%s)",
-                      (dorm_id, rid, cur["status"], new_status, (body.note or "").strip() or None, f"admin:{aid}"))
+                      (dorm_id, rid, cur["status"], new_status, note, f"admin:{aid}"))
     if new_status != cur["status"] and cur["reporter_email"] and notify.enabled():
         background.add_task(notify.tenant_status_changed, cur["reporter_email"], cur["title"], cur["room_no"], cur["dorm"],
                             new_status, (body.note or "").strip(), cur["tracking_token"],

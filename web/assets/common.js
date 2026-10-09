@@ -5,19 +5,34 @@ const DD = {
   STATUS_ICON: { received: "inbox", in_progress: "wrench", done: "checkCircle", rejected: "xCircle" },
   PRIORITY: { normal: "ปกติ", urgent: "ด่วน" },
 
+  newKey() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)); },
+
+  // Every write carries an Idempotency-Key, and a write whose reply was lost (502/503/504 or no answer) is retried
+  // with the SAME key: the API runs it once and returns the first reply again (api/app/idempotency.py).
   async api(path, opts = {}) {
-    const init = { credentials: "same-origin", method: opts.method || "GET", headers: { ...(opts.headers || {}) } };
+    const method = (opts.method || "GET").toUpperCase();
+    const init = { credentials: "same-origin", method, headers: { ...(opts.headers || {}) } };
     if (opts.json !== undefined) { init.body = JSON.stringify(opts.json); init.headers["Content-Type"] = "application/json"; }
     else if (opts.body !== undefined) init.body = opts.body;
-    let res;
-    try { res = await fetch(path, init); }
-    catch (e) { throw { code: "network", message: "เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่" }; }
-    const body = (res.headers.get("content-type") || "").includes("json") ? await res.json() : null;
+    const write = method !== "GET" && method !== "HEAD";
+    if (write && !path.startsWith("/api/auth/") && !init.headers["Idempotency-Key"]) init.headers["Idempotency-Key"] = DD.newKey();
+    const retryable = !write || !!init.headers["Idempotency-Key"];
+    let res = null;
+    for (let attempt = 0; ; attempt++) {
+      try { res = await fetch(path, init); } catch (e) { res = null; }
+      const busy = res && res.status === 409 && res.headers.get("Retry-After");   // same key still running elsewhere
+      if (res && !busy && ![502, 503, 504].includes(res.status)) break;
+      if (!retryable || attempt >= 3) break;
+      await new Promise((r) => setTimeout(r, busy ? 2000 : 900 * (attempt + 1)));
+    }
+    if (!res) throw { code: "network", message: t("เชื่อมต่อไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่"), unsure: write };
+    const body = (res.headers.get("content-type") || "").includes("json") ? await res.json().catch(() => null) : null;
     if (!res.ok) {
       const e = (body && body.error) || { code: String(res.status),
         message: res.status === 429 ? "ส่งคำขอถี่เกินไป กรุณารอสักครู่" : t("เกิดข้อผิดพลาด ({n}) กรุณาลองใหม่", { n: res.status }) };
       e.message = DD_I18N.tMessage(e.message);
       e.status = res.status;
+      e.unsure = write && res.status >= 502;   // the server may have saved it: reload before trying again
       throw e;
     }
     return body;
@@ -86,6 +101,44 @@ const DD = {
       okBtn.focus();
     });
   },
+  // In-page viewer for photos, slips and printable QR codes (instead of opening a raw API URL in a new tab).
+  //   DD.view({ src, title, svg: true, print: true, download: "qr-gym.svg" })
+  async view({ src, title, svg = false, print = false, download = null }) {
+    const prev = document.activeElement;
+    const close = () => { ov.remove(); m.remove(); document.body.classList.remove("printing-view"); document.removeEventListener("keydown", onKey); prev && prev.focus && prev.focus(); };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const ov = DD.el("div", { class: "overlay", onclick: close });
+    const stage = DD.el("div", { class: "viewer-stage", translate: "no" }, DD.el("div", { class: "skel block" }));   // file content, not UI text
+    const closeBtn = DD.el("button", { class: "icon-btn", type: "button", "aria-label": t("ปิด"), onclick: close }, DD.icon("x"));
+    const actions = DD.el("div", { class: "row wrap viewer-actions" });
+    const m = DD.el("div", { class: "modal viewer", role: "dialog", "aria-modal": "true", "aria-label": title || t("ดูรูป") },
+      DD.el("div", { class: "viewer-head" }, DD.el("strong", { class: "spacer", translate: "no", text: title || "" }), closeBtn), stage, actions);
+    document.body.append(ov, m);
+    document.addEventListener("keydown", onKey);
+    closeBtn.focus();
+    try {
+      const res = await fetch(src, { credentials: "same-origin" });
+      if (!res.ok) throw new Error(String(res.status));
+      if (svg) {
+        const text = await res.text();
+        const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+        const node = doc.documentElement;
+        if (node.nodeName.toLowerCase() !== "svg") throw new Error("not svg");
+        node.querySelectorAll("script, foreignObject").forEach((x) => x.remove());   // never run anything from a file
+        node.removeAttribute("width"); node.removeAttribute("height"); node.setAttribute("class", "viewer-svg");
+        stage.replaceChildren(document.importNode(node, true));
+        if (download) actions.append(DD.el("a", { class: "btn ghost", href: URL.createObjectURL(new Blob([text], { type: "image/svg+xml" })), download }, DD.icon("download"), t("ดาวน์โหลด")));
+      } else {
+        const url = URL.createObjectURL(await res.blob());
+        stage.replaceChildren(DD.el("img", { src: url, alt: title || "" }));
+        actions.append(DD.el("a", { class: "btn ghost", href: url, target: "_blank", rel: "noopener" }, DD.icon("image"), t("เปิดขนาดเต็ม")));
+      }
+      if (print) actions.prepend(DD.el("button", { class: "btn", type: "button", onclick: () => { document.body.classList.add("printing-view"); window.print(); setTimeout(() => document.body.classList.remove("printing-view"), 500); } }, DD.icon("printer"), t("พิมพ์")));
+    } catch (e) {
+      stage.replaceChildren(DD.errorBox({ message: t("เปิดไฟล์ไม่ได้ กรุณาลองใหม่") }));
+    }
+  },
+
   errorBox(e) { return DD.el("div", { class: "alert err", role: "alert" }, DD.icon("alert"), DD.el("span", { text: e.message || "เกิดข้อผิดพลาด" })); },
   empty(icon, title, text, action) {
     return DD.el("div", { class: "empty" }, DD.el("div", { class: "empty-icon" }, DD.icon(icon)),
@@ -118,4 +171,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // static markup cannot use style="" (CSP style-src 'self'): data-w / data-i are applied through CSSOM
   document.querySelectorAll("[data-w]").forEach((n) => { n.style.width = n.dataset.w + "%"; });
   document.querySelectorAll("[data-i]").forEach((n) => n.style.setProperty("--i", n.dataset.i));
+});
+
+// photos / slips: <a data-viewer href="..."> opens in the in-page viewer (middle-click / long-press still works)
+document.addEventListener("click", (e) => {
+  const a = e.target.closest && e.target.closest("a[data-viewer]");
+  if (!a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  e.preventDefault();
+  DD.view({ src: a.getAttribute("href"), title: a.getAttribute("data-viewer") || a.getAttribute("aria-label") || "" });
 });

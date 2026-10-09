@@ -32,7 +32,7 @@
       $("detail").classList.toggle("hidden", !r.detail);
       $("photos").replaceChildren(...r.photos.map((id, i) => {
         const src = "/api/track/" + encodeURIComponent(token) + "/photos/" + id;
-        return el("a", { href: src, target: "_blank", rel: "noopener", "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) },
+        return el("a", { href: src, "data-viewer": t("รูปที่แนบ {n}", { n: i + 1 }), "aria-label": t("เปิดรูปที่ {n}", { n: i + 1 }) },
           el("img", { src, alt: t("รูปที่แนบ {n}", { n: i + 1 }), loading: "lazy" }));
       }));
       $("timeline").replaceChildren(...DD.reveal(r.events.slice().reverse().map((e) => el("li", {},
